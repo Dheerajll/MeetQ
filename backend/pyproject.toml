@@ -29,6 +29,8 @@ dependencies = [
 
     # --- Utilities ---
     "python-multipart>=0.0.9",
+
+    "email-validator"
 ]
 
 [project.optional-dependencies]
