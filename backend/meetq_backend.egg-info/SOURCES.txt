@@ -21,11 +21,13 @@ app/core/database.py
 app/core/exceptions.py
 app/core/security.py
 app/models/__init__.py
+app/models/lma_token.py
 app/models/meeting.py
 app/models/summary.py
 app/models/transcript.py
 app/models/user.py
 app/schemas/__init__.py
+app/schemas/lma_token.py
 app/schemas/meeting.py
 app/schemas/rag.py
 app/schemas/summary.py
