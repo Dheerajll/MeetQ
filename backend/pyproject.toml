@@ -30,7 +30,9 @@ dependencies = [
     # --- Utilities ---
     "python-multipart>=0.0.9",
 
-    "email-validator"
+    "email-validator",
+
+    "PyJWT"
 ]
 
 [project.optional-dependencies]
