@@ -1,0 +1,2 @@
+# Python dependencies for the backend
+# FastAPI, SQLAlchemy, Pydantic, Alembic, Ollama, FAISS, etc.
