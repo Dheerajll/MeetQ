@@ -1,10 +1,5 @@
-# FastAPI application entry point
-# Configures lifespan events (startup/shutdown), CORS middleware, and includes API routers
 """
 MeetQ Backend — FastAPI application entry point.
-
-Run with:
-    uvicorn app.main:app --reload --port 8000
 """
 from contextlib import asynccontextmanager
 
@@ -13,18 +8,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
 from app.core.database import engine, Base
-import app.models  # noqa: F401
+import app.models  # noqa: F401 (Ensures models are registered for table creation)
+from app.api.v1.router import api_router  # <-- NEW IMPORT
 
 settings = get_settings()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Startup and shutdown events.
-    - On startup: create tables if they don't exist (dev convenience).
-    - On shutdown: dispose the database engine cleanly.
-    """
     # --- Startup ---
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -44,7 +35,7 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# CORS — allows your frontend (React/Next.js) to call this backend
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.frontend_url],
@@ -53,11 +44,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- MOUNT ROUTES ---
+app.include_router(api_router, prefix="/api/v1")
+
 
 @app.get("/health")
 async def health_check():
-    """Simple health check endpoint."""
-    return {
-        "status": "ok",
-        "app": settings.app_name,
-    }
+    return {"status": "ok", "app": settings.app_name}
