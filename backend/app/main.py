@@ -10,7 +10,7 @@ from app.core.config import get_settings
 from app.core.database import engine, Base
 import app.models  # noqa: F401 (Ensures models are registered for table creation)
 from app.api.v1.router import api_router  # <-- NEW IMPORT
-
+from app.ws.endpoints import router as ws_router
 settings = get_settings()
 
 
@@ -46,6 +46,9 @@ app.add_middleware(
 
 # --- MOUNT ROUTES ---
 app.include_router(api_router, prefix="/api/v1")
+
+# Mount WebSocket routes
+app.include_router(ws_router)
 
 
 @app.get("/health")
