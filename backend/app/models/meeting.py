@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum as PyEnum
 from typing import TYPE_CHECKING
 
@@ -15,30 +15,49 @@ if TYPE_CHECKING:
 
 
 class MeetingStatus(str, PyEnum):
-    SCHEDULED = "scheduled"
-    RECORDING = "recording"
-    PROCESSING = "processing"
-    COMPLETED = "completed"
-    FAILED = "failed"
+    """Meeting lifecycle states."""
+    PENDING = "pending"           # Created, waiting for LMA to join
+    RECORDING = "recording"       # LMA joined and capturing audio
+    PROCESSING = "processing"     # Recording done, cleaning/summarizing
+    COMPLETED = "completed"       # All processing done
+    FAILED = "failed"             # Something went wrong
 
 
 class Meeting(Base):
     __tablename__ = "meetings"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), 
+        index=True
+    )
     title: Mapped[str] = mapped_column(String(500))
     meeting_url: Mapped[str] = mapped_column(String(1000))
-    status: Mapped[MeetingStatus] = mapped_column(Enum(MeetingStatus), default=MeetingStatus.SCHEDULED)
-    scheduled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    status: Mapped[MeetingStatus] = mapped_column(
+        Enum(MeetingStatus), 
+        default=MeetingStatus.PENDING
+    )
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), 
+        nullable=True
+    )
+    ended_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), 
+        nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), 
+        default=lambda: datetime.now(timezone.utc)
+    )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Relationships
     user: Mapped[User] = relationship(back_populates="meetings")
     transcript_chunks: Mapped[list[TranscriptChunk]] = relationship(
         back_populates="meeting",
         cascade="all, delete-orphan",
         order_by="TranscriptChunk.chunk_id",
     )
+
+    def __repr__(self) -> str:
+        return f"<Meeting id={self.id} title='{self.title}' status={self.status}>"

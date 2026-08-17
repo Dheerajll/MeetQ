@@ -3,15 +3,15 @@
 """
 Aggregates all v1 API routers.
 """
+"""
+Aggregates all v1 API routers.
+"""
 from fastapi import APIRouter
 
 from app.api.v1.auth import router as auth_router
+from app.api.v1.meetings import router as meetings_router
 
 api_router = APIRouter()
 
-# Mount the auth router
 api_router.include_router(auth_router)
-
-# Future routers will be added here:
-# from app.api.v1.meetings import router as meetings_router
-# api_router.include_router(meetings_router)
+api_router.include_router(meetings_router)

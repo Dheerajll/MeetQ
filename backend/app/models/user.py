@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from sqlalchemy import String, DateTime, Boolean
@@ -21,14 +21,14 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     name: Mapped[str] = mapped_column(String(255))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), 
+        default=lambda: datetime.now(timezone.utc)
+    )
 
-    # Relationships — no quotes needed anymore
     meetings: Mapped[list[Meeting]] = relationship(
-        back_populates="user",
-        cascade="all, delete-orphan",
+        back_populates="user", cascade="all, delete-orphan"
     )
     lma_tokens: Mapped[list[LMAToken]] = relationship(
-        back_populates="user",
-        cascade="all, delete-orphan",
+        back_populates="user", cascade="all, delete-orphan"
     )

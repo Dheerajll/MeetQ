@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Integer, String, DateTime, ForeignKey, Text, Float
@@ -25,6 +25,9 @@ class TranscriptChunk(Base):
     start_ms: Mapped[int] = mapped_column(Integer)
     end_ms: Mapped[int] = mapped_column(Integer)
     reason: Mapped[str] = mapped_column(String(50))
-    received_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    received_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), 
+        default=lambda: datetime.now(timezone.utc)
+    )
 
     meeting: Mapped[Meeting] = relationship(back_populates="transcript_chunks")

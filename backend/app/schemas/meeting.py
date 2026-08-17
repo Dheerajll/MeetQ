@@ -1,10 +1,5 @@
-# Meeting schemas for request/response validation
-# MeetingCreate, MeetingStatus, MeetingResponse schemas
-"""
-Pydantic schemas for Meeting-related request/response payloads.
-"""
 from datetime import datetime
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel
 
 from app.models.meeting import MeetingStatus
 
@@ -13,7 +8,6 @@ class MeetingCreate(BaseModel):
     """Payload for creating a new meeting."""
     title: str
     meeting_url: str
-    scheduled_at: datetime | None = None
     notes: str | None = None
 
 
@@ -29,7 +23,6 @@ class MeetingResponse(BaseModel):
     title: str
     meeting_url: str
     status: MeetingStatus
-    scheduled_at: datetime | None
     started_at: datetime | None
     ended_at: datetime | None
     created_at: datetime
