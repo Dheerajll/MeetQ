@@ -1,9 +1,5 @@
 """
-Transcript Cleaning Service — v3 (Word-level overlap detection).
-
-Key insight: The overlap between chunks is the SAME AUDIO transcribed twice.
-So the overlapping words will be EXACTLY identical. We use exact word matching,
-not fuzzy character matching.
+Transcript Cleaning Service — v4 with debug output.
 """
 import re
 from sqlalchemy import select
@@ -19,28 +15,33 @@ from app.ai.prompts import (
 
 
 # ============================================================
-# WORD-LEVEL OVERLAP DETECTION
+# SPEAKER LABEL HANDLING (case-insensitive!)
 # ============================================================
 
-def strip_speaker_labels(text: str) -> str:
-    """Remove all [Speaker N] labels from text."""
-    return re.sub(r'\[Speaker \d+\]\s*', '', text).strip()
+SPEAKER_LABEL_PATTERN = re.compile(r'\[speaker\s*\d+\]\s*', re.IGNORECASE)
 
+
+def strip_speaker_labels(text: str) -> str:
+    """Remove all [Speaker N] / [speaker N] labels from text."""
+    return SPEAKER_LABEL_PATTERN.sub('', text).strip()
+
+
+# ============================================================
+# WORD-LEVEL OVERLAP DETECTION
+# ============================================================
 
 def find_word_overlap(raw_prev: str, raw_curr: str, min_words: int = 3) -> int:
     """
     Find overlapping WORDS between end of raw_prev and start of raw_curr.
     
-    Uses exact word matching since the overlap is the same audio
-    transcribed twice by Whisper.
+    Pass 1: Exact word matching
+    Pass 2: Fuzzy matching (allows 1 word difference per 5 words)
     
-    Returns:
-        Number of overlapping words (0 if none found).
+    Returns: Number of overlapping words (0 if none).
     """
     if not raw_prev or not raw_curr:
         return 0
     
-    # Strip speaker labels and split into words
     clean_prev = strip_speaker_labels(raw_prev)
     clean_curr = strip_speaker_labels(raw_curr)
     
@@ -50,18 +51,31 @@ def find_word_overlap(raw_prev: str, raw_curr: str, min_words: int = 3) -> int:
     if not words_prev or not words_curr:
         return 0
     
-    # Try from largest possible overlap down to minimum
     max_words = min(len(words_prev), len(words_curr), 30)
     
+    # Pass 1: Exact matching (from largest to smallest)
     for window in range(max_words, min_words - 1, -1):
-        suffix = words_prev[-window:]
-        prefix = words_curr[:window]
+        suffix = [w.lower().strip('.,!?;:…\'"') for w in words_prev[-window:]]
+        prefix = [w.lower().strip('.,!?;:…\'"') for w in words_curr[:window]]
         
-        # Exact word match (case-insensitive)
-        suffix_lower = [w.lower().strip('.,!?;:') for w in suffix]
-        prefix_lower = [w.lower().strip('.,!?;:') for w in prefix]
+        if suffix == prefix:
+            print(f"    [DEBUG] Exact match found at window={window}")
+            print(f"    [DEBUG] Suffix: {' '.join(words_prev[-window:])}")
+            return window
+    
+    # Pass 2: Fuzzy matching (handles Whisper inconsistencies like "on" vs "in")
+    for window in range(max_words, min_words - 1, -1):
+        suffix = [w.lower().strip('.,!?;:…\'"') for w in words_prev[-window:]]
+        prefix = [w.lower().strip('.,!?;:…\'"') for w in words_curr[:window]]
         
-        if suffix_lower == prefix_lower:
+        matches = sum(1 for a, b in zip(suffix, prefix) if a == b)
+        match_ratio = matches / window if window > 0 else 0
+        
+        # Allow 75% match (handles minor Whisper differences)
+        if match_ratio >= 0.75:
+            print(f"    [DEBUG] Fuzzy match at window={window}, ratio={match_ratio:.2f}")
+            print(f"    [DEBUG] Suffix: {' '.join(words_prev[-window:])}")
+            print(f"    [DEBUG] Prefix: {' '.join(words_curr[:window])}")
             return window
     
     return 0
@@ -69,20 +83,19 @@ def find_word_overlap(raw_prev: str, raw_curr: str, min_words: int = 3) -> int:
 
 def skip_words_in_raw(raw_text: str, words_to_skip: int) -> int:
     """
-    Find the character position in raw_text after skipping N words.
-    Accounts for speaker labels (skips them without counting as words).
+    Find the character position after skipping N words in raw text.
+    Properly handles speaker labels (case-insensitive).
     
-    Returns:
-        Character position to start reading from.
+    Returns: Character position to start reading from.
     """
     words_skipped = 0
     pos = 0
     
     while pos < len(raw_text) and words_skipped < words_to_skip:
-        # Skip speaker labels
-        speaker_match = re.match(r'\[Speaker \d+\]\s*', raw_text[pos:])
+        # Skip speaker labels (case-insensitive)
+        speaker_match = SPEAKER_LABEL_PATTERN.match(raw_text, pos)
         if speaker_match:
-            pos += speaker_match.end()
+            pos = speaker_match.end()
             continue
         
         # Skip whitespace
@@ -90,10 +103,10 @@ def skip_words_in_raw(raw_text: str, words_to_skip: int) -> int:
             pos += 1
             continue
         
-        # We're at a word — consume it
+        # Consume one word (until whitespace or speaker label)
         while pos < len(raw_text) and not raw_text[pos].isspace():
-            # Stop if we hit a speaker label mid-word
-            if raw_text[pos:].startswith('[Speaker'):
+            # Check if we hit a speaker label
+            if SPEAKER_LABEL_PATTERN.match(raw_text, pos):
                 break
             pos += 1
         
@@ -107,6 +120,47 @@ def skip_words_in_raw(raw_text: str, words_to_skip: int) -> int:
 
 
 # ============================================================
+# ENGLISH DETECTION
+# ============================================================
+
+def is_mostly_english(text: str) -> bool:
+    """Detect if text is already English (skip LLM if True)."""
+    if not text.strip():
+        return True
+    
+    clean = strip_speaker_labels(text)
+    if not clean.strip():
+        return True
+    
+    # Check for Devanagari characters
+    for char in clean:
+        if '\u0900' <= char <= '\u097F':
+            return False
+    
+    # Check for common Roman Nepali indicators
+    roman_nepali_words = {
+        'huncha', 'parcha', 'garna', 'garnu', 'garchu', 'garnechu',
+        'cha', 'chha', 'chaina', 'haina', 'tara', 'ani', 'bhane',
+        'maile', 'hamile', 'timile', 'tapai', 'bholi', 'aaja', 'hijo',
+        'samma', 'thik', 'hajur', 'kura', 'baare', 'lagcha', 'sakincha',
+        'rakhnu', 'jane', 'janu', 'herchu', 'pathaune', 'pathaunu',
+        'bhannu', 'sunnu', 'kasari', 'kasto', 'kati', 'kaile',
+        'chahi', 'chahincha', 'tespachi', 'dherai',
+    }
+    
+    words = clean.lower().split()
+    if not words:
+        return True
+    
+    nepali_count = sum(1 for w in words if w.strip('.,!?;:') in roman_nepali_words)
+    
+    if len(words) > 0 and nepali_count / len(words) > 0.10:
+        return False
+    
+    return True
+
+
+# ============================================================
 # TRANSLATION
 # ============================================================
 
@@ -114,14 +168,13 @@ async def translate_chunk_with_context(
     raw_text: str,
     prev_translated: str | None = None,
 ) -> str:
-    """Translate a chunk, using previous translation as context."""
+    """Translate a chunk with context."""
     if not raw_text.strip():
         return ""
     
     if prev_translated is None:
         prompt = TRANSLATE_FIRST_CHUNK_PROMPT.format(raw_text=raw_text)
     else:
-        # Give generous context (last 300 chars)
         prev_ending = prev_translated[-300:] if len(prev_translated) > 300 else prev_translated
         prompt = TRANSLATE_WITH_CONTEXT_PROMPT.format(
             prev_chunk_ending=prev_ending,
@@ -137,13 +190,12 @@ async def translate_chunk_with_context(
 
 
 # ============================================================
-# IN-MEMORY CLEANING (for testing)
+# MAIN CLEANING PIPELINE
 # ============================================================
 
 async def clean_chunks_in_memory(chunks_data: list[dict]) -> list[str]:
     """Clean chunks without database (for testing)."""
     print(f"\n🧹 Cleaning {len(chunks_data)} chunks...")
-    print(f"   Strategy: Exact word overlap → Trim → Translate with context\n")
     
     cleaned_results = []
     prev_raw = None
@@ -153,51 +205,50 @@ async def clean_chunks_in_memory(chunks_data: list[dict]) -> list[str]:
         chunk_id = chunk["chunk_id"]
         raw_text = chunk["raw_text"]
         
-        print(f"  --- Chunk {chunk_id} ---")
-        print(f"  RAW: {raw_text[:90]}...")
+        print(f"\n  --- Chunk {chunk_id} ---")
+        print(f"  RAW: {raw_text[:80]}...")
         
-        # Step 1: Detect word-level overlap
+        # Step 1: Detect overlap
         overlap_words = 0
         if prev_raw is not None:
             overlap_words = find_word_overlap(prev_raw, raw_text)
         
-        # Step 2: Trim overlap from raw text
+        # Step 2: Trim overlap
         if overlap_words > 0:
             skip_pos = skip_words_in_raw(raw_text, overlap_words)
             trimmed_raw = raw_text[skip_pos:].strip()
-            
-            # Show what was trimmed
-            trimmed_portion = raw_text[:skip_pos].strip()
-            print(f"  OVERLAP: {overlap_words} words → \"{trimmed_portion[:60]}\"")
+            overlap_shown = raw_text[:skip_pos].strip()
+            print(f"  OVERLAP: {overlap_words} words → \"{overlap_shown[:60]}\"")
             print(f"  TRIMMED: \"{trimmed_raw[:70]}...\"")
         else:
             trimmed_raw = raw_text
             print(f"  OVERLAP: None detected")
         
-        # Step 3: Translate
+        # Step 3: Translate or keep as-is
         if not trimmed_raw.strip():
-            print(f"  RESULT: (empty — entire chunk was overlap)\n")
+            print(f"  RESULT: (empty)")
             cleaned_results.append("")
             prev_raw = raw_text
             continue
         
-        cleaned = await translate_chunk_with_context(
-            raw_text=trimmed_raw,
-            prev_translated=prev_translated,
-        )
+        if is_mostly_english(trimmed_raw):
+            print(f"  LANG: English → keeping as-is")
+            cleaned = trimmed_raw
+        else:
+            print(f"  LANG: Nepali/mixed → translating")
+            cleaned = await translate_chunk_with_context(
+                raw_text=trimmed_raw,
+                prev_translated=prev_translated,
+            )
         
         cleaned_results.append(cleaned)
         prev_raw = raw_text
         prev_translated = cleaned
         
-        print(f"  RESULT: {cleaned}\n")
+        print(f"  RESULT: {cleaned[:100]}...")
     
     return cleaned_results
 
-
-# ============================================================
-# DATABASE CLEANING (for production)
-# ============================================================
 
 async def clean_meeting_transcripts(meeting_id: int) -> None:
     """Main cleaning pipeline for a meeting."""
@@ -213,10 +264,10 @@ async def clean_meeting_transcripts(meeting_id: int) -> None:
         chunks = result.scalars().all()
         
         if not chunks:
-            print(f"⚠️ No transcript chunks found for meeting {meeting_id}")
+            print(f"⚠️ No chunks found for meeting {meeting_id}")
             return
         
-        print(f"📝 Found {len(chunks)} chunks to clean")
+        print(f"📝 Found {len(chunks)} chunks")
         
         chunks_data = [
             {"chunk_id": c.chunk_id, "raw_text": c.raw_text}
@@ -229,4 +280,4 @@ async def clean_meeting_transcripts(meeting_id: int) -> None:
             chunk.cleaned_text = cleaned_results[i]
         
         await db.commit()
-        print(f"✓ Saved {len(chunks)} cleaned chunks to database")
+        print(f"✓ Saved {len(chunks)} cleaned chunks")
