@@ -81,6 +81,10 @@ async def handle_lma_connection(websocket: WebSocket, meeting_id: int):
             if payload.get("type") == "handshake":
                 await manager.send_message(meeting_id, {"status": "handshake_ack"})
                 continue
+            # FIX: Handle application-level keepalive pings
+            if payload.get("type") == "ping":
+                await manager.send_message(meeting_id, {"status": "pong"})
+                continue
 
             # Save chunk to DB
             async with AsyncSessionLocal() as db:
