@@ -24,7 +24,7 @@ class OllamaClient:
             "prompt": prompt,
             "stream": False,
             "options": {
-                "temperature": 0.1,  # Low temperature for strict translation/cleaning
+                "temperature": 0.0,  # Low temperature for strict translation/cleaning       # Use top-p sampling
                 "num_predict": 2048, # Max tokens to generate
             }
         }

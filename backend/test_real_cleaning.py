@@ -34,8 +34,8 @@ async def main():
         
         for chunk in chunks:
             print(f"\n  [Chunk {chunk.chunk_id}] (start: {chunk.start_ms}ms, end: {chunk.end_ms}ms)")
-            print(f"  RAW:     {chunk.raw_text[:120]}")
-            print(f"  CLEANED: {chunk.cleaned_text[:120] if chunk.cleaned_text else '(not cleaned yet)'}")
+            print(f"  RAW:     {chunk.raw_text}")
+            print(f"  CLEANED: {chunk.cleaned_text if chunk.cleaned_text else '(not cleaned yet)'}")
             print(f"  ---")
     
     print(f"\n  Total chunks: {len(chunks)}")
