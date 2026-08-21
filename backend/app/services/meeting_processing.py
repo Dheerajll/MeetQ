@@ -15,7 +15,7 @@ from app.core.database import AsyncSessionLocal
 from app.models.meeting import Meeting, MeetingStatus
 from app.services.cleaning import clean_meeting_transcripts
 from app.services.summarization import summarize_meeting
-
+from app.services.rag_service import index_meeting
 async def start_processing(meeting_id: int) -> None:
     """
     Run the full processing pipeline for a meeting.
@@ -40,20 +40,12 @@ async def start_processing(meeting_id: int) -> None:
         print(f"✅ Meeting {meeting_id}: Cleaning complete.")
 
         # ──────────────────────────────────────────────
-        # STEP 2: Index cleaned transcripts in FAISS
+        # STEP 2: Index cleaned transcripts for RAG
         # ──────────────────────────────────────────────
-        # TODO: Add FAISS indexing here for RAG-based retrieval.
-        #
-        # What will happen:
-        #   1. Fetch all cleaned_text chunks for this meeting
-        #   2. Generate embeddings (e.g., sentence-transformers)
-        #   3. Store in FAISS index with metadata (meeting_id, chunk_id, speaker)
-        #   4. Persist index for later Q&A / retrieval
-        #
-        # from app.services.rag.indexer import index_meeting_transcripts
-        # await index_meeting_transcripts(meeting_id)
-        #
-        print(f"📌 Meeting {meeting_id}: [FAISS indexing — TODO]")
+        print(f"🔍 Meeting {meeting_id}: Indexing transcripts for RAG...")
+        async with AsyncSessionLocal() as db:
+            await index_meeting(meeting_id, db)
+        print(f"✅ Meeting {meeting_id}: Indexing complete.")
 
         # ──────────────────────────────────────────────
         # STEP 3: Hierarchical Summarization

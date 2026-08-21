@@ -32,7 +32,10 @@ dependencies = [
 
     "email-validator",
 
-    "PyJWT"
+    "PyJWT",
+
+    "pgvector>=0.3.0",         # SQLAlchemy integration for pgvector
+    "sentence-transformers", 
 ]
 
 [project.optional-dependencies]
