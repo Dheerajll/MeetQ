@@ -4,7 +4,9 @@ Handles the LMA WebSocket lifecycle:
 - Receiving transcript chunks
 - Saving to database
 - Sending ACKs
+- Triggering processing pipeline on disconnect
 """
+import asyncio
 import json
 from datetime import datetime, timezone
 
@@ -15,6 +17,7 @@ from app.core.database import AsyncSessionLocal
 from app.models.lma_token import LMAToken
 from app.models.meeting import Meeting, MeetingStatus
 from app.models.transcript import TranscriptChunk
+from app.services.meeting_processing import start_processing
 from app.ws.manager import manager
 
 
@@ -57,7 +60,7 @@ async def handle_lma_connection(websocket: WebSocket, meeting_id: int):
             meeting.status = MeetingStatus.RECORDING
             meeting.started_at = datetime.now(timezone.utc)
             await db.commit()
-            print(f"🔴 Meeting {meeting_id} status updated to RECORDING")
+            print(f"🔴 Meeting {meeting_id} status → RECORDING")
 
     # 2. Accept and register connection
     await manager.connect(meeting_id, websocket)
@@ -77,11 +80,12 @@ async def handle_lma_connection(websocket: WebSocket, meeting_id: int):
                 })
                 continue
 
-            # Handle handshake message
+            # Handle handshake
             if payload.get("type") == "handshake":
                 await manager.send_message(meeting_id, {"status": "handshake_ack"})
                 continue
-            # FIX: Handle application-level keepalive pings
+
+            # Handle keepalive pings
             if payload.get("type") == "ping":
                 await manager.send_message(meeting_id, {"status": "pong"})
                 continue
@@ -113,7 +117,7 @@ async def handle_lma_connection(websocket: WebSocket, meeting_id: int):
         print(f"❌ LMA disconnected from meeting {meeting_id}")
         manager.disconnect(meeting_id)
 
-        # Update status to PROCESSING when LMA disconnects
+        # Transition to PROCESSING
         async with AsyncSessionLocal() as db:
             stmt = select(Meeting).where(Meeting.id == meeting_id)
             result = await db.execute(stmt)
@@ -123,4 +127,7 @@ async def handle_lma_connection(websocket: WebSocket, meeting_id: int):
                 meeting.status = MeetingStatus.PROCESSING
                 meeting.ended_at = datetime.now(timezone.utc)
                 await db.commit()
-                print(f"⏹️ Meeting {meeting_id} status updated to PROCESSING")
+                print(f"⏹️ Meeting {meeting_id} status → PROCESSING")
+
+        # Fire processing pipeline in background (non-blocking)
+        asyncio.create_task(start_processing(meeting_id))
