@@ -35,7 +35,8 @@ dependencies = [
     "PyJWT",
 
     "pgvector>=0.3.0",         # SQLAlchemy integration for pgvector
-    "sentence-transformers", 
+    "dateparser"
+   
 ]
 
 [project.optional-dependencies]

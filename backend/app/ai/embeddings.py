@@ -1,36 +1,56 @@
-# Embeddings wrapper
-# Uses sentence-transformers to convert text to vector embeddings
 """
-Embeddings wrapper.
-Uses sentence-transformers to convert text to vector embeddings.
-Model: all-MiniLM-L6-v2 (384 dimensions, fast, great for local CPU/Metal).
+Embeddings via Ollama.
+
+Uses Ollama's /api/embed endpoint to generate vector embeddings.
+No model loading in the FastAPI process — Ollama manages the model lifecycle.
+
+Model: nomic-embed-text (768 dimensions)
+Pull it with: ollama pull nomic-embed-text
 """
 
-from sentence_transformers import SentenceTransformer
-import numpy as np
+import httpx
 
-# Load model once at startup (takes ~2 seconds, then stays in memory)
-print("🧠 Loading embedding model (all-MiniLM-L6-v2)...")
-_model = SentenceTransformer("all-MiniLM-L6-v2")
-print("✓ Embedding model ready")
+from app.core.config import get_settings
 
-# Dimension of the vectors produced by this model
-EMBEDDING_DIM = 384
+settings = get_settings()
+
+# Ollama embedding model (separate from the LLM model used for generation)
+EMBEDDING_MODEL = "nomic-embed-text"
+EMBEDDING_DIM = 768
 
 
-def get_embeddings(texts: list[str]) -> np.ndarray:
+async def get_embeddings(texts: list[str]) -> list[list[float]]:
     """
-    Convert a list of strings into a numpy array of vectors.
-    
+    Convert a list of strings into vector embeddings using Ollama.
+
     Args:
         texts: List of strings to embed.
-        
+
     Returns:
-        Numpy array of shape (len(texts), 384) with float32 precision.
+        List of embedding vectors (each is a list of 768 floats).
     """
     if not texts:
-        return np.array([], dtype=np.float32).reshape(0, EMBEDDING_DIM)
-        
-    # encode returns a numpy array, we ensure it's float32 for FAISS
-    vectors = _model.encode(texts, show_progress_bar=False, normalize_embeddings=True)
-    return np.array(vectors, dtype=np.float32)
+        return []
+
+    async with httpx.AsyncClient(
+        base_url=settings.ollama_base_url,
+        timeout=60.0,
+    ) as client:
+        response = await client.post(
+            "/api/embed",
+            json={
+                "model": EMBEDDING_MODEL,
+                "input": texts,
+            },
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        # Ollama returns {"embeddings": [[...], [...], ...]}
+        return data.get("embeddings", [])
+
+
+async def get_single_embedding(text: str) -> list[float]:
+    """Embed a single string. Convenience wrapper."""
+    results = await get_embeddings([text])
+    return results[0] if results else []
