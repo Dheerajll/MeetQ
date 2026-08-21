@@ -8,6 +8,7 @@ class MeetingCreate(BaseModel):
     """Payload for creating a new meeting."""
     title: str
     meeting_url: str
+    language: str = "en"  # ← Added
     notes: str | None = None
 
 
@@ -22,6 +23,7 @@ class MeetingResponse(BaseModel):
     user_id: int
     title: str
     meeting_url: str
+    language: str  # ← Added
     status: MeetingStatus
     started_at: datetime | None
     ended_at: datetime | None
@@ -29,3 +31,9 @@ class MeetingResponse(BaseModel):
     notes: str | None
 
     model_config = {"from_attributes": True}
+
+
+class MeetingListResponse(BaseModel):
+    """Schema for listing all meetings."""
+    meetings: list[MeetingResponse]
+    total: int
