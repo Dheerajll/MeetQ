@@ -14,7 +14,7 @@ from sqlalchemy import select
 from app.core.database import AsyncSessionLocal
 from app.models.meeting import Meeting, MeetingStatus
 from app.services.cleaning import clean_meeting_transcripts
-
+from app.services.summarization import summarize_meeting
 
 async def start_processing(meeting_id: int) -> None:
     """
@@ -56,20 +56,11 @@ async def start_processing(meeting_id: int) -> None:
         print(f"📌 Meeting {meeting_id}: [FAISS indexing — TODO]")
 
         # ──────────────────────────────────────────────
-        # STEP 3: Map-Reduce Summarization
+        # STEP 3: Hierarchical Summarization
         # ──────────────────────────────────────────────
-        # TODO: Add summarization here.
-        #
-        # What will happen:
-        #   1. Fetch cleaned chunks from DB
-        #   2. MAP: Summarize each chunk independently
-        #   3. REDUCE: Combine partial summaries into final summary
-        #   4. Extract action items, decisions, key points
-        #   5. Store summary in DB
-        #
-        # from app.services.summarization import summarize_meeting
-        # await summarize_meeting(meeting_id)
-        #
+        print(f"📝 Meeting {meeting_id}: Running summarization...")
+        await summarize_meeting(meeting_id)
+        print(f"✅ Meeting {meeting_id}: Summarization complete.")
         print(f"📌 Meeting {meeting_id}: [Summarization — TODO]")
 
         # ──────────────────────────────────────────────
