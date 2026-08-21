@@ -61,8 +61,7 @@ async def start_processing(meeting_id: int) -> None:
         print(f"📝 Meeting {meeting_id}: Running summarization...")
         await summarize_meeting(meeting_id)
         print(f"✅ Meeting {meeting_id}: Summarization complete.")
-        print(f"📌 Meeting {meeting_id}: [Summarization — TODO]")
-
+        
         # ──────────────────────────────────────────────
         # STEP 4: Mark meeting as COMPLETED
         # ──────────────────────────────────────────────

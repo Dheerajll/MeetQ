@@ -1,13 +1,22 @@
-from datetime import datetime, timezone
+"""
+Meeting endpoints.
+
+Thin router layer — handles HTTP concerns only:
+- Request validation (via Pydantic schemas)
+- Authentication (via dependencies)
+- Response formatting (via response_model)
+- HTTP status codes
+
+All business logic lives in app/services/meeting_service.py
+"""
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.models.user import User
-from app.models.meeting import Meeting, MeetingStatus
-from app.models.transcript import TranscriptChunk
+from app.models.lma_token import LMAToken
+from app.models.meeting import MeetingStatus
 from app.schemas.meeting import (
     MeetingCreate,
     MeetingResponse,
@@ -15,6 +24,8 @@ from app.schemas.meeting import (
 )
 from app.schemas.transcript import TranscriptChunkResponse
 from app.api.deps import get_current_user, get_current_lma
+from app.services.meeting_service import MeetingService
+from app.services.lma_command import send_join_meeting_command, is_lma_connected
 
 router = APIRouter(prefix="/meetings", tags=["Meetings"])
 
@@ -30,19 +41,26 @@ async def create_meeting(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Create a new meeting.
-    Starts in PENDING status, ready for LMA to join immediately.
+    Create a new meeting and signal the LMA daemon to join.
     """
-    meeting = Meeting(
+    # Check if LMA daemon is connected
+    if not is_lma_connected(current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="LMA daemon is not connected. Start it with: lma daemon",
+        )
+
+    # Create meeting via service
+    service = MeetingService(db)
+    meeting = await service.create_meeting(current_user.id, payload)
+
+    # Send join command to LMA daemon
+    await send_join_meeting_command(
         user_id=current_user.id,
-        title=payload.title,
+        meeting_id=meeting.id,
         meeting_url=payload.meeting_url,
-        status=MeetingStatus.PENDING,
-        notes=payload.notes,
+        language=payload.language,
     )
-    db.add(meeting)
-    await db.commit()
-    await db.refresh(meeting)
 
     return meeting
 
@@ -54,17 +72,8 @@ async def list_meetings(
     current_user: User = Depends(get_current_user),
 ):
     """List all meetings for the logged-in user."""
-    stmt = select(Meeting).where(Meeting.user_id == current_user.id)
-
-    if status_filter is not None:
-        stmt = stmt.where(Meeting.status == status_filter)
-
-    stmt = stmt.order_by(Meeting.created_at.desc())
-
-    result = await db.execute(stmt)
-    meetings = result.scalars().all()
-
-    return meetings
+    service = MeetingService(db)
+    return await service.list_meetings(current_user.id, status_filter)
 
 
 @router.get("/{meeting_id}", response_model=MeetingResponse)
@@ -74,19 +83,14 @@ async def get_meeting(
     current_user: User = Depends(get_current_user),
 ):
     """Get a specific meeting by ID."""
-    stmt = select(Meeting).where(
-        Meeting.id == meeting_id,
-        Meeting.user_id == current_user.id,
-    )
-    result = await db.execute(stmt)
-    meeting = result.scalar_one_or_none()
+    service = MeetingService(db)
+    meeting = await service.get_meeting(meeting_id, current_user.id)
 
     if meeting is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Meeting not found",
         )
-
     return meeting
 
 
@@ -95,43 +99,19 @@ async def update_meeting_status(
     meeting_id: int,
     payload: MeetingStatusUpdate,
     db: AsyncSession = Depends(get_db),
-    current_lma=Depends(get_current_lma),
+    current_lma: LMAToken = Depends(get_current_lma),
 ):
-    """
-    Update meeting status (called by LMA).
-    
-    Status transitions:
-    - PENDING → RECORDING (LMA joined)
-    - RECORDING → PROCESSING (meeting ended)
-    - PROCESSING → COMPLETED (transcripts cleaned/summarized)
-    - Any → FAILED (error occurred)
-    """
-    stmt = select(Meeting).where(
-        Meeting.id == meeting_id,
-        Meeting.user_id == current_lma.user_id,
+    """Update meeting status (called by LMA)."""
+    service = MeetingService(db)
+    meeting = await service.update_meeting_status(
+        meeting_id, current_lma.user_id, payload
     )
-    result = await db.execute(stmt)
-    meeting = result.scalar_one_or_none()
 
     if meeting is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Meeting not found",
         )
-
-    old_status = meeting.status
-    meeting.status = payload.status
-
-    # Set timestamps based on transitions
-    if old_status == MeetingStatus.PENDING and payload.status == MeetingStatus.RECORDING:
-        meeting.started_at = datetime.now(timezone.utc)
-    elif payload.status in (MeetingStatus.PROCESSING, MeetingStatus.COMPLETED, MeetingStatus.FAILED):
-        if meeting.ended_at is None:
-            meeting.ended_at = datetime.now(timezone.utc)
-
-    await db.commit()
-    await db.refresh(meeting)
-
     return meeting
 
 
@@ -145,28 +125,17 @@ async def get_meeting_transcripts(
     current_user: User = Depends(get_current_user),
 ):
     """Get all transcript chunks for a meeting."""
-    stmt = select(Meeting).where(
-        Meeting.id == meeting_id,
-        Meeting.user_id == current_user.id,
-    )
-    result = await db.execute(stmt)
-    meeting = result.scalar_one_or_none()
+    service = MeetingService(db)
 
+    # Verify meeting belongs to user
+    meeting = await service.get_meeting(meeting_id, current_user.id)
     if meeting is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Meeting not found",
         )
 
-    stmt = (
-        select(TranscriptChunk)
-        .where(TranscriptChunk.meeting_id == meeting_id)
-        .order_by(TranscriptChunk.chunk_id)
-    )
-    result = await db.execute(stmt)
-    chunks = result.scalars().all()
-
-    return chunks
+    return await service.get_meeting_transcripts(meeting_id)
 
 
 @router.delete(
@@ -179,18 +148,11 @@ async def delete_meeting(
     current_user: User = Depends(get_current_user),
 ):
     """Delete a meeting and all associated data."""
-    stmt = select(Meeting).where(
-        Meeting.id == meeting_id,
-        Meeting.user_id == current_user.id,
-    )
-    result = await db.execute(stmt)
-    meeting = result.scalar_one_or_none()
+    service = MeetingService(db)
+    deleted = await service.delete_meeting(meeting_id, current_user.id)
 
-    if meeting is None:
+    if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Meeting not found",
         )
-
-    await db.delete(meeting)
-    await db.commit()
