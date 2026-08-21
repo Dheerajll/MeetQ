@@ -1,28 +1,34 @@
 """
 WebSocket Connection Manager.
-
 Tracks active WebSocket connections.
-Useful for broadcasting messages or sending updates
-to specific clients from other parts of the app.
+
+Supports two types of keys:
+- int (meeting_id): Data channel for chunk streaming
+- str ("lma_control_{user_id}"): Control channel for daemon commands
 """
+
 from fastapi import WebSocket
 
 
 class ConnectionManager:
     def __init__(self):
-        # meeting_id -> WebSocket connection
-        self.active_connections: dict[int, WebSocket] = {}
+        # key can be int (meeting_id) or str (control channel)
+        self.active_connections: dict[int | str, WebSocket] = {}
 
-    async def connect(self, meeting_id: int, websocket: WebSocket):
+    async def connect(self, key: int | str, websocket: WebSocket):
         await websocket.accept()
-        self.active_connections[meeting_id] = websocket
+        self.active_connections[key] = websocket
 
-    def disconnect(self, meeting_id: int):
-        self.active_connections.pop(meeting_id, None)
+    def disconnect(self, key: int | str):
+        self.active_connections.pop(key, None)
 
-    async def send_message(self, meeting_id: int, message: dict):
-        """Send a message to a specific meeting's connection."""
-        ws = self.active_connections.get(meeting_id)
+    def is_connected(self, key: int | str) -> bool:
+        """Check if a connection exists for the given key."""
+        return key in self.active_connections
+
+    async def send_message(self, key: int | str, message: dict):
+        """Send a JSON message to a specific connection."""
+        ws = self.active_connections.get(key)
         if ws:
             await ws.send_json(message)
 
