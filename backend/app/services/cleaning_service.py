@@ -1,11 +1,12 @@
 """
-Transcript Cleaning Service — Single-Pass.
+Transcript Cleaning Service — Single-Pass with Dynamic Batching.
 
 English chunks:
     - Code-based overlap removal. No LLM.
 
 Nepali/mixed chunks:
-    - One LLM pass to infer clean English from broken Whisper output.
+    - Dynamic batching: groups chunks to minimize LLM calls.
+    - Single LLM pass per batch to infer clean English.
 """
 
 from __future__ import annotations
@@ -18,6 +19,8 @@ from app.ai.ollama_client import ollama
 from app.ai.prompts import (
     CLEANING_INFER_SYSTEM_PROMPT,
     CLEANING_INFER_USER_PROMPT,
+    CLEANING_BATCH_SYSTEM_PROMPT,
+    CLEANING_BATCH_USER_PROMPT,
 )
 from app.core.database import AsyncSessionLocal
 from app.models.transcript import TranscriptChunk
@@ -225,11 +228,82 @@ def clean_llm_output(raw_output: str) -> str:
 
 
 # ============================================================
-# Nepali/mixed LLM inference (single pass)
+# Dynamic Batching for Nepali/Mixed Chunks
 # ============================================================
 
-async def infer_mixed_chunk(raw_text: str) -> str:
-    """Single LLM pass: infer clean English from broken Whisper output."""
+# Maximum characters per batch (tune based on your model's context window)
+MAX_BATCH_CHARS = 3000
+
+
+def group_chunks_into_batches(
+    mixed_chunks: list[dict],
+    max_batch_chars: int = MAX_BATCH_CHARS,
+) -> list[list[dict]]:
+    """
+    Group mixed chunks into batches based on total character count.
+    
+    Each batch stays under max_batch_chars to avoid overwhelming the model.
+    """
+    batches = []
+    current_batch = []
+    current_chars = 0
+
+    for chunk in mixed_chunks:
+        chunk_chars = len(chunk["raw_text"])
+
+        # If adding this chunk would exceed the limit, start a new batch
+        if current_chars + chunk_chars > max_batch_chars and current_batch:
+            batches.append(current_batch)
+            current_batch = []
+            current_chars = 0
+
+        current_batch.append(chunk)
+        current_chars += chunk_chars
+
+    # Don't forget the last batch
+    if current_batch:
+        batches.append(current_batch)
+
+    return batches
+
+
+async def infer_batch(batch: list[dict]) -> list[str]:
+    """
+    Process a batch of chunks in a single LLM call.
+    Returns list of cleaned texts in the same order as input.
+    """
+    if len(batch) == 1:
+        # Single chunk: use the simple prompt
+        return [await infer_single_chunk(batch[0]["raw_text"])]
+
+    # Multiple chunks: use batch prompt
+    batched_text = ""
+    for i, chunk in enumerate(batch):
+        batched_text += f"[Chunk {i + 1}]\n{chunk['raw_text']}\n\n"
+
+    prompt = CLEANING_BATCH_USER_PROMPT.format(batched_chunks=batched_text.strip())
+
+    try:
+        result = await ollama.generate(
+            prompt,
+            system_prompt=CLEANING_BATCH_SYSTEM_PROMPT,
+        )
+
+        # Parse the batched response
+        cleaned_texts = parse_batch_response(result, len(batch))
+        return cleaned_texts
+
+    except Exception as e:
+        print(f"     ⚠️ Batch LLM inference failed: {e}")
+        # Fallback: process individually
+        results = []
+        for chunk in batch:
+            results.append(await infer_single_chunk(chunk["raw_text"]))
+        return results
+
+
+async def infer_single_chunk(raw_text: str) -> str:
+    """Single LLM pass for one chunk (fallback)."""
     prompt = CLEANING_INFER_USER_PROMPT.format(raw_text=raw_text)
 
     try:
@@ -243,6 +317,38 @@ async def infer_mixed_chunk(raw_text: str) -> str:
         return raw_text
 
 
+def parse_batch_response(response: str, expected_count: int) -> list[str]:
+    """
+    Parse the LLM's batched response into individual chunk texts.
+    
+    Expected format:
+    [Chunk 1]
+    <text>
+    
+    [Chunk 2]
+    <text>
+    """
+    # Try to split by [Chunk N] markers
+    chunks = re.split(r"\[Chunk\s*\d+\]", response, flags=re.IGNORECASE)
+
+    # Remove empty strings from split
+    chunks = [c.strip() for c in chunks if c.strip()]
+
+    # Clean each chunk
+    cleaned = [clean_llm_output(c) for c in chunks]
+
+    # If we got the expected number, great
+    if len(cleaned) == expected_count:
+        return cleaned
+
+    # If we got fewer, pad with [unclear]
+    while len(cleaned) < expected_count:
+        cleaned.append("[unclear]")
+
+    # If we got more, truncate
+    return cleaned[:expected_count]
+
+
 # ============================================================
 # Main pipeline
 # ============================================================
@@ -250,37 +356,55 @@ async def infer_mixed_chunk(raw_text: str) -> str:
 async def clean_chunks_in_memory(chunks_data: list[dict]) -> list[str]:
     """
     Clean chunks without database.
-    English: code-based overlap removal.
-    Nepali/mixed: single-pass LLM inference.
+
+    English: code-based overlap removal (sequential, no LLM).
+    Nepali/mixed: dynamic batching for LLM inference.
     """
     print(f"\n🧹 Cleaning {len(chunks_data)} chunks...")
 
-    cleaned_results: list[str] = []
+    # Separate English and mixed chunks while preserving order
+    results = [None] * len(chunks_data)
+    mixed_indices = []
     prev_english_raw: str | None = None
 
-    for chunk in chunks_data:
+    for idx, chunk in enumerate(chunks_data):
         chunk_id = chunk["chunk_id"]
         raw_text = chunk["raw_text"]
 
-        print(f"\n  --- Chunk {chunk_id} ---")
-        print(f"  RAW: {raw_text[:100]}...")
-
         if is_english_chunk(raw_text):
-            print("  PATH: English → code overlap removal")
+            print(f"  Chunk {chunk_id}: English → code overlap removal")
             cleaned = clean_english_chunk(
                 raw_text=raw_text,
                 prev_english_raw=prev_english_raw,
             )
+            results[idx] = cleaned
             prev_english_raw = raw_text
         else:
-            print("  PATH: Nepali/mixed → single-pass LLM inference")
-            cleaned = await infer_mixed_chunk(raw_text)
-            prev_english_raw = None
+            mixed_indices.append(idx)
+            prev_english_raw = None  # Reset English chain
 
-        cleaned_results.append(cleaned)
-        print(f"  CLEANED: {cleaned[:150]}...")
+    # Process all mixed chunks with dynamic batching
+    if mixed_indices:
+        mixed_chunks = [chunks_data[i] for i in mixed_indices]
+        print(f"\n  📦 {len(mixed_chunks)} Nepali/mixed chunks → dynamic batching")
 
-    return cleaned_results
+        # Group into batches
+        batches = group_chunks_into_batches(mixed_chunks)
+        print(f"  📦 Grouped into {len(batches)} batch(es)")
+
+        # Process each batch
+        batch_offset = 0
+        for batch_idx, batch in enumerate(batches):
+            print(f"\n  --- Batch {batch_idx + 1}/{len(batches)} ({len(batch)} chunks) ---")
+
+            cleaned_texts = await infer_batch(batch)
+
+            for i, cleaned in enumerate(cleaned_texts):
+                results[mixed_indices[batch_offset + i]] = cleaned
+
+            batch_offset += len(batch)
+
+    return results
 
 
 async def clean_meeting_transcripts(meeting_id: int) -> None:
