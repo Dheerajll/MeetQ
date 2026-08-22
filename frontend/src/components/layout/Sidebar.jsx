@@ -1,11 +1,10 @@
-// src/components/layout/Sidebar.jsx
-
 "use client";
 
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import LMATokenModal from "@/components/settings/LMATokenModal";
 import {
   Home,
   MessageSquare,
@@ -13,21 +12,22 @@ import {
   LogOut,
   PanelLeftClose,
   PanelLeft,
-  Mic,
   Menu,
   X,
-  Users
+  Users,
+  Key,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/", label: "Home", icon: Home },
   { href: "/query", label: "Ask about meetings", icon: MessageSquare },
-    { href: "/meetings", label: "Summaries", icon: FileText },
+  { href: "/meetings", label: "Summaries", icon: FileText },
 ];
 
 function SidebarContent({ collapsed, onNavigate }) {
   const pathname = usePathname();
   const { logout } = useAuth();
+  const [tokenModalOpen, setTokenModalOpen] = useState(false);
 
   const handleLogout = async () => {
     onNavigate?.();
@@ -61,6 +61,18 @@ function SidebarContent({ collapsed, onNavigate }) {
 
       {/* Footer */}
       <div className="px-3 py-4 border-t border-border space-y-1">
+        {/* LMA Token button */}
+        <button
+          type="button"
+          onClick={() => setTokenModalOpen(true)}
+          title={collapsed ? "Get LMA Token" : undefined}
+          className="flex items-center gap-3 w-full rounded-md px-3 py-2 text-sm font-medium text-muted hover:bg-bg hover:text-ink transition-colors"
+        >
+          <Key size={18} className="shrink-0" />
+          {!collapsed && <span>Get LMA Token</span>}
+        </button>
+
+        {/* Logout button */}
         <button
           type="button"
           onClick={handleLogout}
@@ -71,6 +83,12 @@ function SidebarContent({ collapsed, onNavigate }) {
           {!collapsed && <span>Log out</span>}
         </button>
       </div>
+
+      {/* Token Modal */}
+      <LMATokenModal
+        isOpen={tokenModalOpen}
+        onClose={() => setTokenModalOpen(false)}
+      />
     </>
   );
 }
@@ -137,9 +155,7 @@ export default function Sidebar() {
             </span>
           )}
         </div>
-
         <SidebarContent collapsed={collapsed} />
-
         <div className="px-3 pb-4 -mt-3">
           <button
             onClick={() => setCollapsed((c) => !c)}

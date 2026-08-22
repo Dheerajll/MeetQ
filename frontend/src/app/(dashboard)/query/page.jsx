@@ -70,7 +70,7 @@ export default function DashboardPage() {
     setLoading(true);
 
     try {
-      const res = await api.post("v1/rag/query", { query, top_k: 5 });
+      const res = await api.post("rag/query", { query, top_k: 5 });
       setMessages((prev) => [
         ...prev,
         {

@@ -3,7 +3,7 @@
 import axios from "axios";
 
 // Same-origin path, rewritten to the real backend in next.config.mjs.
-const API_URL = "/api";
+const API_URL = "/api/v1";
 
 let accessToken = null;
 

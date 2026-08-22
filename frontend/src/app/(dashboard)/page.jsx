@@ -1,48 +1,60 @@
-// src/app/(dashboard)/page.jsx
-
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import {Type, Link2, Calendar, Clock, ArrowRight } from "lucide-react";
+import { Type, Link2, ArrowRight, Plus } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-
-function todayISO() {
-  const d = new Date();
-  const offset = d.getTimezoneOffset();
-  const local = new Date(d.getTime() - offset * 60 * 1000);
-  return local.toISOString().slice(0, 10);
-}
-
-function nowHHMM() {
-  const d = new Date();
-  return d.toTimeString().slice(0, 5);
-}
+import api from "@/lib/api";
+import MeetingTrackerCard from "@/components/meetings/MeetingTrackerCard";
 
 export default function HomePage() {
-  const router = useRouter();
   const { user } = useAuth();
   const [meetingTitle, setMeetingTitle] = useState("");
   const [meetingLink, setMeetingLink] = useState("");
-  const [date, setDate] = useState(todayISO());
-  const [time, setTime] = useState(nowHHMM());
+  const [language, setLanguage] = useState("en");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [activeMeetings, setActiveMeetings] = useState([]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
     setLoading(true);
-    // TODO: send { meetingLink, date, time } to the backend to register/queue the meeting
-    const params = new URLSearchParams({
-      title: meetingTitle,
-      link: meetingLink,
-      date,
-      time,
-    });
-    router.push(`/query?${params.toString()}`);
+
+    try {
+      const res = await api.post("/meetings", {
+        title: meetingTitle,
+        meeting_url: meetingLink,
+        language,
+      });
+
+      // Add to the front of the tracker list
+      setActiveMeetings((prev) => [res.data, ...prev]);
+
+      // Reset form
+      setMeetingTitle("");
+      setMeetingLink("");
+      setLanguage("en");
+    } catch (err) {
+      const detail = err.response?.data?.detail;
+      if (typeof detail === "string") {
+        setError(detail);
+      } else {
+        setError("Failed to create meeting. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
- return (
-    <main className="flex-1 flex flex-col items-center justify-center px-4 py-12">
+  // Update a meeting in the active list when its status changes
+  const handleStatusChange = (updatedMeeting) => {
+    setActiveMeetings((prev) =>
+      prev.map((m) => (m.id === updatedMeeting.id ? updatedMeeting : m))
+    );
+  };
+
+  return (
+    <main className="flex-1 flex flex-col items-center px-4 py-12 overflow-y-auto">
       <div className="w-full max-w-lg">
         {/* Project name + quote */}
         <div className="text-center mb-10">
@@ -63,41 +75,29 @@ export default function HomePage() {
           className="bg-surface border border-border rounded-lg shadow-card p-6 sm:p-8 space-y-5"
         >
           <div>
-            <label
-              htmlFor="meetingTitle"
-              className="block text-sm font-medium text-ink mb-1"
-            >
+            <label htmlFor="meetingTitle" className="block text-sm font-medium text-ink mb-1">
               Meeting title
             </label>
             <div className="relative">
-              <Type
-                size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted"
-              />
+              <Type size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
               <input
                 id="meetingTitle"
                 type="text"
                 required
                 value={meetingTitle}
                 onChange={(e) => setMeetingTitle(e.target.value)}
-                placeholder="Your Meeting Title"
+                placeholder="Q3 Planning, Standup, Design Review…"
                 className="w-full rounded-md border border-border pl-9 pr-3 py-2 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
           </div>
 
           <div>
-            <label
-              htmlFor="meetingLink"
-              className="block text-sm font-medium text-ink mb-1"
-            >
+            <label htmlFor="meetingLink" className="block text-sm font-medium text-ink mb-1">
               Meeting link
             </label>
             <div className="relative">
-              <Link2
-                size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted"
-              />
+              <Link2 size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
               <input
                 id="meetingLink"
                 type="url"
@@ -110,63 +110,56 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label
-                htmlFor="date"
-                className="block text-sm font-medium text-ink mb-1"
-              >
-                Date
-              </label>
-              <div className="relative">
-                <Calendar
-                  size={16}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
-                />
-                <input
-                  id="date"
-                  type="date"
-                  required
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full rounded-md border border-border pl-9 pr-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label
-                htmlFor="time"
-                className="block text-sm font-medium text-ink mb-1"
-              >
-                Time
-              </label>
-              <div className="relative">
-                <Clock
-                  size={16}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
-                />
-                <input
-                  id="time"
-                  type="time"
-                  required
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                  className="w-full rounded-md border border-border pl-9 pr-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-            </div>
+          <div>
+            <label htmlFor="language" className="block text-sm font-medium text-ink mb-1">
+              Language
+            </label>
+            <select
+              id="language"
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              className="w-full rounded-md border border-border px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+            >
+              <option value="en">English</option>
+              <option value="ne">Nepali / Mixed</option>
+            </select>
           </div>
+
+          {error && (
+            <div className="rounded-md border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger">
+              {error}
+            </div>
+          )}
 
           <button
             type="submit"
             disabled={loading}
             className="w-full flex items-center justify-center gap-2 rounded-md bg-primary py-2.5 text-sm font-medium text-white hover:bg-primary-dark transition-colors disabled:opacity-60"
           >
-            {loading ? "Submitting" : "Submit Link"}
-            {!loading && <ArrowRight size={16} />}
+            {loading ? "Starting…" : (
+              <>
+                <Plus size={16} />
+                Start meeting agent
+              </>
+            )}
           </button>
         </form>
+
+        {/* Active meeting trackers */}
+        {activeMeetings.length > 0 && (
+          <div className="mt-8 space-y-3">
+            <h2 className="font-display text-lg font-semibold text-ink">
+              Active meetings
+            </h2>
+            {activeMeetings.map((m) => (
+              <MeetingTrackerCard
+                key={m.id}
+                meeting={m}
+                onStatusChange={handleStatusChange}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </main>
   );
