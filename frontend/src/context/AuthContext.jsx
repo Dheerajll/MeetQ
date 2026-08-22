@@ -11,7 +11,7 @@ import {
 } from "react";
 import { jwtDecode } from "jwt-decode";
 import { useRouter } from "next/navigation";
-import api, { setAccessToken as setApiAccessToken } from "@/lib/api";
+import { setAccessToken as setApiAccessToken } from "@/lib/api";
 
 const AuthContext = createContext(undefined);
 
@@ -76,12 +76,7 @@ export function AuthProvider({ children }) {
     setLoading(false);
   }, [applyToken]);
 
-  const logout = useCallback(async () => {
-    try {
-      await api.post("/auth/logout");
-    } catch {
-      // ignore backend errors — log out locally regardless
-    }
+  const logout = useCallback(() => {
     applyToken(null);
     router.push("/login");
   }, [applyToken, router]);
