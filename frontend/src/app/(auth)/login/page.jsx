@@ -1,18 +1,30 @@
 // src/app/(auth)/login/page.jsx
+"use client";
+
+import { Mic } from "lucide-react";
 
 const GOOGLE_LOGIN_URL = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/google`;
 
 export default function LoginPage() {
   return (
-    <div className="bg-surface border border-border rounded-lg shadow-card p-8">
+    <div className="bg-surface border border-border rounded-lg shadow-card p-8 sm:p-10 flex flex-col items-center text-center">
+      {/* Icon */}
+      <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <Mic size={24} />
+      </div>
+
+      {/* Header */}
       <h2 className="font-display text-2xl font-semibold text-ink">
         Welcome back
       </h2>
-      <p className="mt-1 text-sm text-muted">Log in to see what you missed.</p>
+      <p className="mt-2 text-sm text-muted max-w-xs">
+        Log in to access your meeting summaries, action items, and AI insights.
+      </p>
 
+      {/* Google Button */}
       <a
         href={GOOGLE_LOGIN_URL}
-        className="mt-6 flex w-full items-center justify-center gap-3 rounded-md border border-border bg-white py-2 text-sm font-medium text-ink hover:bg-zinc-50 transition-colors"
+        className="mt-8 flex w-full items-center justify-center gap-3 rounded-md border border-border bg-white py-2.5 text-sm font-medium text-ink shadow-sm hover:bg-zinc-50 hover:border-zinc-300 hover:shadow-md transition-all active:scale-[0.98]"
       >
         <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
           <path
@@ -34,6 +46,19 @@ export default function LoginPage() {
         </svg>
         Continue with Google
       </a>
+
+      {/* Footer / Terms to balance vertical space */}
+      <p className="mt-8 text-xs text-muted">
+        By continuing, you agree to our{" "}
+        <a href="#" className="text-primary hover:underline">
+          Terms of Service
+        </a>{" "}
+        and{" "}
+        <a href="#" className="text-primary hover:underline">
+          Privacy Policy
+        </a>
+        .
+      </p>
     </div>
   );
 }
