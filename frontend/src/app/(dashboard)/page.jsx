@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react"; // <-- Added useEffect
 import { Type, Link2, ArrowRight, Plus } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api";
@@ -14,6 +14,27 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [activeMeetings, setActiveMeetings] = useState([]);
+
+  // 1. Fetch active meetings on mount so they persist across refreshes/navigation
+  useEffect(() => {
+    const fetchActiveMeetings = async () => {
+      try {
+        const res = await api.get("/meetings");
+        // Filter for meetings that are still in progress
+        const active = res.data.filter(
+          (m) =>
+            m.status === "pending" ||
+            m.status === "recording" ||
+            m.status === "processing"
+        );
+        setActiveMeetings(active);
+      } catch (err) {
+        console.error("Failed to fetch active meetings", err);
+      }
+    };
+    
+    fetchActiveMeetings();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -46,11 +67,21 @@ export default function HomePage() {
     }
   };
 
-  // Update a meeting in the active list when its status changes
+  // 2. Update or remove the meeting when its status changes
   const handleStatusChange = (updatedMeeting) => {
-    setActiveMeetings((prev) =>
-      prev.map((m) => (m.id === updatedMeeting.id ? updatedMeeting : m))
-    );
+    setActiveMeetings((prev) => {
+      // If the meeting reached a terminal state, remove it from the active list
+      if (
+        updatedMeeting.status === "completed" ||
+        updatedMeeting.status === "failed"
+      ) {
+        return prev.filter((m) => m.id !== updatedMeeting.id);
+      }
+      // Otherwise, update it in the list
+      return prev.map((m) =>
+        m.id === updatedMeeting.id ? updatedMeeting : m
+      );
+    });
   };
 
   return (
