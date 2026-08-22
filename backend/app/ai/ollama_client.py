@@ -9,7 +9,7 @@ from app.core.config import get_settings
 settings = get_settings()
 
 class OllamaClient:
-    def __init__(self, base_url: str, model: str, timeout: float = 120.0):
+    def __init__(self, base_url: str, model: str, timeout: float = 600.0):
         self.base_url = base_url
         self.model = model
         self.client = httpx.AsyncClient(base_url=base_url, timeout=timeout)

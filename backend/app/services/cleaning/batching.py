@@ -9,7 +9,7 @@ from __future__ import annotations
 
 
 # Maximum characters per batch (tune based on model's context window)
-MAX_BATCH_CHARS = 3000
+MAX_BATCH_CHARS = 1500
 
 
 def group_chunks_into_batches(
