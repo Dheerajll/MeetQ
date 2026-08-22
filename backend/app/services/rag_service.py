@@ -3,11 +3,6 @@ RAG Service using pgvector.
 
 No FAISS. No files. Vectors live in PostgreSQL alongside the chunks.
 Embeddings are generated via Ollama (no local model loading).
-
-Supports:
-- Indexing meetings for search
-- Semantic search with time-range filtering
-- Scoping search to a specific meeting
 """
 
 from __future__ import annotations
@@ -26,32 +21,25 @@ async def index_meeting(meeting_id: int, db: AsyncSession) -> None:
     """
     Generate embeddings for all cleaned chunks of a meeting
     and store them in the database.
-
-    Called after cleaning completes in the processing pipeline.
-    Skips chunks that already have embeddings (idempotent).
     """
     stmt = (
         select(TranscriptChunk)
         .where(TranscriptChunk.meeting_id == meeting_id)
         .where(TranscriptChunk.cleaned_text.isnot(None))
-        .where(TranscriptChunk.embedding.is_(None))
         .order_by(TranscriptChunk.chunk_id)
     )
     result = await db.execute(stmt)
     chunks = result.scalars().all()
 
     if not chunks:
-        print(f"⚠️ No new chunks to index for meeting {meeting_id}")
+        print(f"⚠️ No cleaned chunks to index for meeting {meeting_id}")
         return
 
+    # Generate embeddings via Ollama (batch call)
     texts = [c.cleaned_text for c in chunks]
-    print(f"  Embedding {len(texts)} chunks...")
     vectors = await get_embeddings(texts)
 
-    if len(vectors) != len(chunks):
-        print(f"❌ Embedding count mismatch: got {len(vectors)}, expected {len(chunks)}")
-        return
-
+    # Store vectors back into the chunks
     for chunk, vector in zip(chunks, vectors):
         chunk.embedding = vector
 
@@ -66,23 +54,19 @@ async def search_similar_chunks(
     top_k: int = 5,
     start_date: datetime | None = None,
     end_date: datetime | None = None,
-    meeting_id: int | None = None,
 ) -> list[TranscriptChunk]:
     """
     Search for chunks most similar to the query.
-
-    Supports filtering by:
-    - Time range (based on when the meeting started/created)
-    - Specific meeting ID
-
-    Uses pgvector's cosine distance operator for semantic similarity.
+    Uses pgvector's cosine distance operator.
+    Filters by time range if provided by the query parser.
     """
+    # Embed the query via Ollama
     query_vector = await get_single_embedding(query)
 
     if not query_vector:
         return []
 
-    # Base query
+    # Base SQL query
     stmt = (
         select(TranscriptChunk)
         .join(Meeting, TranscriptChunk.meeting_id == Meeting.id)
@@ -91,16 +75,8 @@ async def search_similar_chunks(
     )
 
     # ──────────────────────────────────────────────
-    # SCOPE & TIME FILTERS
+    # TIME FILTERS (Derived from natural language)
     # ──────────────────────────────────────────────
-
-    # Filter by specific meeting
-    if meeting_id is not None:
-        stmt = stmt.where(TranscriptChunk.meeting_id == meeting_id)
-
-    # Filter by time range
-    # We check started_at first. If the meeting never started (PENDING/FAILED),
-    # fall back to created_at so it doesn't get excluded.
     if start_date is not None:
         stmt = stmt.where(
             (Meeting.started_at >= start_date)

@@ -1,7 +1,5 @@
 """
 RAG (Retrieval-Augmented Generation) endpoints.
-
-POST /rag/query — Query meeting transcripts using semantic search + LLM.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -9,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.models.user import User
-from app.models.meeting import Meeting
 from app.schemas.rag import RAGQueryRequest, RAGQueryResponse, RAGSourceResponse
 from app.services.rag_service import search_similar_chunks
 from app.services.query_parser import parse_query
@@ -26,22 +23,17 @@ async def query_rag(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Query the meeting knowledge base.
-
-    1. Parse query for time filters ("last week", "yesterday").
-    2. Search for relevant chunks using pgvector.
-    3. Generate an answer using Ollama.
+    Query the meeting knowledge base using natural language.
+    Time references ("yesterday", "last week") are parsed automatically.
     """
 
     # 1. Parse the query for time references
     parsed = parse_query(payload.query)
 
-    # Use explicit dates from payload if provided, otherwise use parsed dates
-    start_date = payload.start_date or parsed.start_date
-    end_date = payload.end_date or parsed.end_date
-
-    if start_date:
-        print(f"🔍 Time filter: {start_date.date()} → {end_date.date() if end_date else 'now'}")
+    if parsed.start_date:
+        print(f"🔍 Time filter applied: {parsed.start_date.date()} → {parsed.end_date.date()}")
+    else:
+        print("🔍 No time filter applied (searching all meetings)")
 
     # 2. Search for relevant chunks
     chunks = await search_similar_chunks(
@@ -49,9 +41,8 @@ async def query_rag(
         user_id=current_user.id,
         db=db,
         top_k=payload.top_k,
-        start_date=start_date,
-        end_date=end_date,
-        meeting_id=payload.meeting_id,
+        start_date=parsed.start_date,
+        end_date=parsed.end_date,
     )
 
     if not chunks:
@@ -61,11 +52,7 @@ async def query_rag(
         )
 
     # 3. Format context for the LLM
-    context_parts = []
-    for chunk in chunks:
-        context_parts.append(chunk.cleaned_text or chunk.raw_text)
-
-    context_text = "\n\n---\n\n".join(context_parts)
+    context_text = "\n\n---\n\n".join([c.cleaned_text or c.raw_text for c in chunks])
 
     # 4. Generate answer using Ollama
     system_prompt = (
@@ -89,22 +76,15 @@ async def query_rag(
         )
 
     # 5. Build source responses
-    sources = []
-    for chunk in chunks:
-        # Fetch meeting title for context
-        meeting_title = None
-        if chunk.meeting:
-            meeting_title = chunk.meeting.title
-
-        sources.append(
-            RAGSourceResponse(
-                meeting_id=chunk.meeting_id,
-                chunk_id=chunk.chunk_id,
-                text=chunk.cleaned_text or chunk.raw_text,
-                start_ms=chunk.start_ms,
-                end_ms=chunk.end_ms,
-                meeting_title=meeting_title,
-            )
+    sources = [
+        RAGSourceResponse(
+            meeting_id=c.meeting_id,
+            chunk_id=c.chunk_id,
+            text=c.cleaned_text or c.raw_text,
+            start_ms=c.start_ms,
+            end_ms=c.end_ms,
         )
+        for c in chunks
+    ]
 
     return RAGQueryResponse(answer=answer, sources=sources)
