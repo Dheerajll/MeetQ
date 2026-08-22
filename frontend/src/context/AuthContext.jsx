@@ -7,24 +7,39 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useRef,
   useState,
 } from "react";
-import Cookies from "js-cookie";
 import { jwtDecode } from "jwt-decode";
 import { useRouter } from "next/navigation";
 import api, { setAccessToken as setApiAccessToken } from "@/lib/api";
 
 const AuthContext = createContext(undefined);
 
-const COOKIE_NAME = "refresh_token";
+// No refresh token from the backend — the access token itself (plus the
+// user it decodes to) is all that's persisted across page reloads.
+const SESSION_KEY = "meetq_session";
+
+function readStoredSession() {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+
+    const session = JSON.parse(raw);
+    const { exp } = jwtDecode(session.accessToken);
+    if (!exp || exp * 1000 <= Date.now()) return null;
+
+    return session;
+  } catch {
+    return null;
+  }
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [accessToken, setAccessTokenState] = useState(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const refreshAttempted = useRef(false);
 
   const applyToken = useCallback((token, explicitUser = null) => {
     setAccessTokenState(token);
@@ -32,52 +47,34 @@ export function AuthProvider({ children }) {
 
     if (!token) {
       setUser(null);
-      return;
-    }
-    if (explicitUser) {
-      setUser(explicitUser);
+      localStorage.removeItem(SESSION_KEY);
       return;
     }
 
-    try {
-      setUser(jwtDecode(token));
-    } catch {
-      setUser(null);
+    let resolvedUser = explicitUser;
+    if (!resolvedUser) {
+      try {
+        resolvedUser = jwtDecode(token);
+      } catch {
+        resolvedUser = null;
+      }
     }
+
+    setUser(resolvedUser);
+    localStorage.setItem(
+      SESSION_KEY,
+      JSON.stringify({ accessToken: token, user: resolvedUser })
+    );
   }, []);
 
-  // Attempt refresh once on mount only — useRef guard prevents re-running
-  // if applyToken reference ever changes, and prevents double-fire in
-  // React Strict Mode which mounts components twice in development.
+  // Restore the session from localStorage on first load.
   useEffect(() => {
-    if (refreshAttempted.current) return;
-    refreshAttempted.current = true;
-
-    api
-      .post("/auth/refresh")
-      .then((res) => applyToken(res.data.access_token, res.data.user))
-      .catch(() => applyToken(null))
-      .finally(() => setLoading(false));
+    const session = readStoredSession();
+    if (session) {
+      applyToken(session.accessToken, session.user);
+    }
+    setLoading(false);
   }, [applyToken]);
-
-  const login = useCallback(
-    async (email, password) => {
-      const res = await api.post("/auth/login", { email, password });
-      applyToken(res.data.access_token, res.data.user);
-      return res.data;
-    },
-    [applyToken]
-  );
-
-  const signup = useCallback(
-    async ({ name, email, password }) => {
-      const res = await api.post("/auth/register", { name, email, password });
-      // backend returns user only, no token — redirect to login
-      router.push("/login");
-      return res.data;
-    },
-    [router]
-  );
 
   const logout = useCallback(async () => {
     try {
@@ -85,7 +82,6 @@ export function AuthProvider({ children }) {
     } catch {
       // ignore backend errors — log out locally regardless
     }
-    Cookies.remove(COOKIE_NAME);
     applyToken(null);
     router.push("/login");
   }, [applyToken, router]);
@@ -95,8 +91,7 @@ export function AuthProvider({ children }) {
     accessToken,
     isAuthenticated: Boolean(accessToken),
     loading,
-    login,
-    signup,
+    applyToken,
     logout,
   };
 
