@@ -140,38 +140,47 @@ export default function Sidebar() {
       )}
 
       {/* Desktop sidebar */}
-      <aside
-        className={`hidden md:flex flex-col shrink-0 h-screen sticky top-0 border-r border-border bg-surface transition-[width] duration-200 ${
-          collapsed ? "w-16" : "w-64"
-        }`}
+<aside
+  className={`hidden md:flex flex-col shrink-0 h-screen sticky top-0 border-r border-border bg-surface transition-[width] duration-200 ${
+    collapsed ? "w-16" : "w-64"
+  }`}
+>
+  {/* Header with logo and collapse button */}
+  <div className="flex items-center h-16 px-4 border-b border-border">
+    {collapsed ? (
+      // When collapsed: just show the collapse button centered
+      <button
+        onClick={() => setCollapsed((c) => !c)}
+        aria-label="Expand sidebar"
+        className="w-full flex items-center justify-center p-1.5 rounded-md text-muted hover:bg-bg hover:text-ink transition-colors"
       >
-        <div className="flex items-center gap-2 h-16 px-4 border-b border-border">
+        <PanelLeft size={18} className="shrink-0" />
+      </button>
+    ) : (
+      // When expanded: show logo on left, collapse button on right
+      <>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
           <div className="flex items-center justify-center w-8 h-8 rounded-md bg-primary text-white shrink-0">
             <Users size={16} />
           </div>
-          {!collapsed && (
-            <span className="font-display font-semibold text-ink truncate">
-              Meet Q
-            </span>
-          )}
+          <span className="font-display font-semibold text-ink truncate">
+            Meet Q
+          </span>
         </div>
-        <SidebarContent collapsed={collapsed} />
-        <div className="px-3 pb-4 -mt-3">
-          <button
-            onClick={() => setCollapsed((c) => !c)}
-            className="flex items-center gap-3 w-full rounded-md px-3 py-2 text-sm font-medium text-muted hover:bg-bg hover:text-ink transition-colors"
-          >
-            {collapsed ? (
-              <PanelLeft size={18} className="shrink-0" />
-            ) : (
-              <>
-                <PanelLeftClose size={18} className="shrink-0" />
-                <span>Collapse</span>
-              </>
-            )}
-          </button>
-        </div>
-      </aside>
+        
+        <button
+          onClick={() => setCollapsed((c) => !c)}
+          aria-label="Collapse sidebar"
+          className="p-1.5 rounded-md text-muted hover:bg-bg hover:text-ink transition-colors"
+        >
+          <PanelLeftClose size={18} className="shrink-0" />
+        </button>
+      </>
+    )}
+  </div>
+
+  <SidebarContent collapsed={collapsed} />
+  </aside>
     </>
   );
 }
