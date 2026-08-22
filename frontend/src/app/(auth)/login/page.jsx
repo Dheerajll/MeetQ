@@ -113,13 +113,6 @@ export default function LoginPage() {
           {loading ? "Logging in..." : "Log in"}
         </button>
       </form>
-
-      <p className="mt-6 text-center text-sm text-muted">
-        Don't have an account?{" "}
-        <Link href="/signup" className="text-primary font-medium hover:underline">
-          Sign up
-        </Link>
-      </p>
     </div>
   );
 }
