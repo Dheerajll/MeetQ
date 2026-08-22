@@ -16,6 +16,8 @@ from app.models.meeting import Meeting, MeetingStatus
 from app.services.cleaning import clean_meeting_transcripts
 from app.services.summarization import summarize_meeting
 from app.services.rag_service import index_meeting
+from app.services.email_service import send_meeting_completed_email
+
 async def start_processing(meeting_id: int) -> None:
     """
     Run the full processing pipeline for a meeting.
@@ -59,6 +61,14 @@ async def start_processing(meeting_id: int) -> None:
         # ──────────────────────────────────────────────
         await _update_status(meeting_id, MeetingStatus.COMPLETED)
         print(f"🎉 Meeting {meeting_id}: Pipeline complete → COMPLETED")
+
+        # ──────────────────────────────────────────────
+        # STEP 5: Send completion email
+        # ──────────────────────────────────────────────
+        print(f"📧 Meeting {meeting_id}: Sending completion email...")
+        # We await it, but the email service catches its own exceptions
+        # so a failed email won't break the pipeline status.
+        await send_meeting_completed_email(meeting_id)
 
     except Exception as e:
         print(f"❌ Meeting {meeting_id}: Pipeline failed: {e}")

@@ -26,7 +26,7 @@ from app.schemas.transcript import TranscriptChunkResponse
 from app.api.deps import get_current_user, get_current_lma
 from app.services.meeting_service import MeetingService
 from app.services.lma_command import send_join_meeting_command, is_lma_connected
-
+from app.schemas.summary import SummaryResponse, MeetingWithSummary
 router = APIRouter(prefix="/meetings", tags=["Meetings"])
 
 
@@ -74,6 +74,16 @@ async def list_meetings(
     """List all meetings for the logged-in user."""
     service = MeetingService(db)
     return await service.list_meetings(current_user.id, status_filter)
+
+
+@router.get("/summaries", response_model=list[MeetingWithSummary])
+async def list_meetings_with_summaries(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List all meetings with their summaries (for the dashboard)."""
+    service = MeetingService(db)
+    return await service.list_meetings_with_summaries(current_user.id)
 
 
 @router.get("/{meeting_id}", response_model=MeetingResponse)
@@ -136,6 +146,28 @@ async def get_meeting_transcripts(
         )
 
     return await service.get_meeting_transcripts(meeting_id)
+
+
+@router.get(
+    "/{meeting_id}/summary",
+    response_model=SummaryResponse,
+)
+async def get_meeting_summary(
+    meeting_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get the summary for a specific meeting."""
+    service = MeetingService(db)
+    summary = await service.get_summary(meeting_id, current_user.id)
+
+    if summary is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Summary not found. The meeting may not be processed yet.",
+        )
+    return summary
+
 
 
 @router.delete(

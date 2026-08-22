@@ -56,6 +56,14 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3"
 
+    # --- Email (SMTP via Gmail) ---
+    smtp_enabled: bool = True
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_username: str = ""      # Your Gmail address
+    smtp_password: str = ""      # Gmail APP PASSWORD (not your login password)
+    email_from: str = ""         # Display name sender, e.g. "MeetQ <you@gmail.com>"
+
     def model_post_init(self, __context) -> None:
         """
         Called after all fields are loaded.

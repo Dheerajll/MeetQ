@@ -25,7 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.meeting import Meeting, MeetingStatus
 from app.models.transcript import TranscriptChunk
 from app.schemas.meeting import MeetingCreate, MeetingStatusUpdate
-
+from app.models.summary import MeetingSummary
 
 class MeetingService:
     """
@@ -149,6 +149,65 @@ class MeetingService:
         )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
+    
+    # ──────────────────────────────────────────────
+    # Summary
+    # ──────────────────────────────────────────────
+
+    async def get_summary(
+        self,
+        meeting_id: int,
+        user_id: int,
+    ) -> MeetingSummary | None:
+        """Get the summary for a meeting (with ownership check)."""
+        # Verify the meeting belongs to this user first
+        meeting = await self.get_meeting(meeting_id, user_id)
+        if meeting is None:
+            return None
+
+        stmt = select(MeetingSummary).where(
+            MeetingSummary.meeting_id == meeting_id
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def list_meetings_with_summaries(
+        self,
+        user_id: int,
+    ) -> list[dict]:
+        """
+        List all meetings with their summaries joined in.
+        Returns a list of dicts ready for MeetingWithSummary schema.
+        """
+        stmt = (
+            select(Meeting, MeetingSummary)
+            .outerjoin(
+                MeetingSummary,
+                Meeting.id == MeetingSummary.meeting_id,
+            )
+            .where(Meeting.user_id == user_id)
+            .order_by(Meeting.created_at.desc())
+        )
+        result = await self.db.execute(stmt)
+        rows = result.all()
+
+        items = []
+        for meeting, summary in rows:
+            items.append({
+                "id": meeting.id,
+                "title": meeting.title,
+                "meeting_url": meeting.meeting_url,
+                "language": meeting.language,
+                "status": meeting.status,
+                "started_at": meeting.started_at,
+                "created_at": meeting.created_at,
+                "meeting_type": summary.meeting_type if summary else None,
+                "overview": summary.overview if summary else None,
+                "key_topics": summary.key_topics if summary else [],
+                "decisions": summary.decisions if summary else [],
+                "action_items": summary.action_items if summary else [],
+            })
+        return items
 
     # ──────────────────────────────────────────────
     # Delete
