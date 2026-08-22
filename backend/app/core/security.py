@@ -27,6 +27,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def create_access_token(
     subject: str,
+    name: str | None = None,
     expires_delta: timedelta | None = None,
 ) -> str:
     """
@@ -49,6 +50,7 @@ def create_access_token(
 
     payload = {
         "sub": subject,
+        "name": name or "",
         "exp": expire,
         "iat": datetime.now(timezone.utc),
     }

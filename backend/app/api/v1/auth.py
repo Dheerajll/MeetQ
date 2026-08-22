@@ -142,18 +142,13 @@ async def google_callback(
     else:
         print(f"✓ Existing user logged in: {email}")
 
-    # --- Generate our own JWT ---
-    jwt_token = create_access_token(subject=user.email)
+        # - Generate our own JWT (include the user's name) -
+    jwt_token = create_access_token(subject=user.email, name=user.name)
 
-    return {
-        "access_token": jwt_token,
-        "token_type": "bearer",
-        "user": {
-            "id": user.id,
-            "email": user.email,
-            "name": user.name,
-        },
-    }
+    # - Redirect to the frontend callback page with the token -
+    return RedirectResponse(
+        url=f"{settings.frontend_url}/login/callback?token={jwt_token}"
+    )
 
 
 # ============================================================

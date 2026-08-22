@@ -1,13 +1,9 @@
 // src/app/(auth)/login/callback/page.jsx
-
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import axios from "axios";
 import { useAuth } from "@/context/AuthContext";
-
-const GOOGLE_CALLBACK_URL = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/google/callback`;
 
 function GoogleCallback() {
   const router = useRouter();
@@ -16,27 +12,38 @@ function GoogleCallback() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const code = searchParams.get("code");
-    if (!code) {
-      router.replace("/login");
+    // Read the token from URL params (backend redirects here with ?token=JWT)
+    const token = searchParams.get("token");
+    
+    if (!token) {
+      setError("No token received from Google. Please try again.");
+      // Give user a moment to see the error before redirecting
+      setTimeout(() => router.replace("/login"), 2000);
       return;
     }
 
-    axios
-      .get(GOOGLE_CALLBACK_URL, { params: { code } })
-      .then((res) => {
-        applyToken(res.data.access_token, res.data.user);
-        router.replace("/");
-      })
-      .catch(() => setError("Google sign-in failed. Please try again."));
-    // The auth code is single-use — this must only run once per page load.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // Apply the token (stores in memory + localStorage + sets user)
+    applyToken(token);
+    
+    // Redirect to dashboard
+    router.replace("/");
+  }, [searchParams, applyToken, router]);
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-bg">
+        <p className="text-center text-sm text-danger">{error}</p>
+      </div>
+    );
+  }
 
   return (
-    <p className="text-center text-sm text-muted">
-      {error || "Signing you in…"}
-    </p>
+    <div className="min-h-screen flex items-center justify-center bg-bg">
+      <div className="flex items-center gap-2 text-sm text-muted">
+        <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+        Signing you in…
+      </div>
+    </div>
   );
 }
 

@@ -64,6 +64,9 @@ class Settings(BaseSettings):
     smtp_password: str = ""      # Gmail APP PASSWORD (not your login password)
     email_from: str = ""         # Display name sender, e.g. "MeetQ <you@gmail.com>"
 
+     # Add this near the top with your other URLs
+    frontend_url: str = "http://localhost:3000"
+
     def model_post_init(self, __context) -> None:
         """
         Called after all fields are loaded.
