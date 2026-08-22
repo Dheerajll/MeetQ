@@ -91,7 +91,7 @@ def _build_email(
 ) -> EmailMessage:
     """Construct the EmailMessage with an HTML body."""
     msg = EmailMessage()
-    msg["Subject"] = f"✅ Your meeting summary is ready: {meeting_title}"
+    msg["Subject"] = f"Your meeting summary is ready: {meeting_title}"
     msg["From"] = settings.email_from or settings.smtp_username
 
     html = _render_html(recipient_name, meeting_title, summary)
