@@ -1,13 +1,14 @@
+// src/app/(dashboard)/page.jsx
 "use client";
 
-import { useState, useEffect } from "react"; // <-- Added useEffect
-import { Type, Link2, ArrowRight, Plus } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Type, Link2, Plus, AlertCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api";
 import MeetingTrackerCard from "@/components/meetings/MeetingTrackerCard";
 
 export default function HomePage() {
-  const { user } = useAuth();
+  const { user, hasLmaToken } = useAuth(); // <-- Get hasLmaToken
   const [meetingTitle, setMeetingTitle] = useState("");
   const [meetingLink, setMeetingLink] = useState("");
   const [language, setLanguage] = useState("en");
@@ -15,12 +16,11 @@ export default function HomePage() {
   const [error, setError] = useState("");
   const [activeMeetings, setActiveMeetings] = useState([]);
 
-  // 1. Fetch active meetings on mount so they persist across refreshes/navigation
+  // Fetch active meetings on mount so they persist across refreshes
   useEffect(() => {
     const fetchActiveMeetings = async () => {
       try {
         const res = await api.get("/meetings");
-        // Filter for meetings that are still in progress
         const active = res.data.filter(
           (m) =>
             m.status === "pending" ||
@@ -32,15 +32,20 @@ export default function HomePage() {
         console.error("Failed to fetch active meetings", err);
       }
     };
-    
     fetchActiveMeetings();
   }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    setLoading(true);
 
+    // 1. BLOCK submission if no LMA token exists
+    if (!hasLmaToken) {
+      setError("You must generate an LMA Token first. Click 'Get LMA Token' in the sidebar.");
+      return;
+    }
+
+    setLoading(true);
     try {
       const res = await api.post("/meetings", {
         title: meetingTitle,
@@ -67,7 +72,7 @@ export default function HomePage() {
     }
   };
 
-  // 2. Update or remove the meeting when its status changes
+  // Update a meeting in the active list when its status changes
   const handleStatusChange = (updatedMeeting) => {
     setActiveMeetings((prev) => {
       // If the meeting reached a terminal state, remove it from the active list
@@ -99,6 +104,20 @@ export default function HomePage() {
             &ldquo;The faintest note beats the sharpest memory.&rdquo;
           </p>
         </div>
+
+        {/* Show prominent warning if no token */}
+        {!hasLmaToken && (
+          <div className="mb-6 rounded-md border border-accent/30 bg-accent/5 px-4 py-3 flex gap-3">
+            <AlertCircle className="shrink-0 text-accent mt-0.5" size={20} />
+            <div>
+              <p className="text-sm font-medium text-ink">LMA Token Required</p>
+              <p className="text-sm text-muted mt-1">
+                To start a meeting, you need to generate an LMA Token first. 
+                Click <strong>"Get LMA Token"</strong> in the left sidebar.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Meeting form */}
         <form
@@ -143,7 +162,7 @@ export default function HomePage() {
 
           <div>
             <label htmlFor="language" className="block text-sm font-medium text-ink mb-1">
-              Language
+              Meeting's Language
             </label>
             <select
               id="language"
@@ -164,8 +183,12 @@ export default function HomePage() {
 
           <button
             type="submit"
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-2 rounded-md bg-primary py-2.5 text-sm font-medium text-white hover:bg-primary-dark transition-colors disabled:opacity-60"
+            disabled={loading || !hasLmaToken} // <-- Disable button if no token
+            className={`w-full flex items-center justify-center gap-2 rounded-md py-2.5 text-sm font-medium transition-colors ${
+              !hasLmaToken 
+                ? "bg-muted text-white cursor-not-allowed opacity-60" 
+                : "bg-primary text-white hover:bg-primary-dark disabled:opacity-60"
+            }`}
           >
             {loading ? "Starting…" : (
               <>

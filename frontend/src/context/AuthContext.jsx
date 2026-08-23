@@ -1,5 +1,4 @@
 // src/context/AuthContext.jsx
-
 "use client";
 
 import {
@@ -11,12 +10,9 @@ import {
 } from "react";
 import { jwtDecode } from "jwt-decode";
 import { useRouter } from "next/navigation";
-import { setAccessToken as setApiAccessToken } from "@/lib/api";
+import api, { setAccessToken as setApiAccessToken } from "@/lib/api";
 
 const AuthContext = createContext(undefined);
-
-// No refresh token from the backend — the access token itself (plus the
-// user it decodes to) is all that's persisted across page reloads.
 const SESSION_KEY = "meetq_session";
 
 function readStoredSession() {
@@ -24,11 +20,9 @@ function readStoredSession() {
   try {
     const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return null;
-
     const session = JSON.parse(raw);
     const { exp } = jwtDecode(session.accessToken);
     if (!exp || exp * 1000 <= Date.now()) return null;
-
     return session;
   } catch {
     return null;
@@ -38,19 +32,18 @@ function readStoredSession() {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [accessToken, setAccessTokenState] = useState(null);
+  const [hasLmaToken, setHasLmaToken] = useState(false); // <-- NEW STATE
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   const applyToken = useCallback((token, explicitUser = null) => {
     setAccessTokenState(token);
     setApiAccessToken(token);
-
     if (!token) {
       setUser(null);
       localStorage.removeItem(SESSION_KEY);
       return;
     }
-
     let resolvedUser = explicitUser;
     if (!resolvedUser) {
       try {
@@ -59,7 +52,6 @@ export function AuthProvider({ children }) {
         resolvedUser = null;
       }
     }
-
     setUser(resolvedUser);
     localStorage.setItem(
       SESSION_KEY,
@@ -76,7 +68,23 @@ export function AuthProvider({ children }) {
     setLoading(false);
   }, [applyToken]);
 
-  const logout = useCallback(() => {
+  // Fetch LMA token status whenever the access token changes
+  useEffect(() => {
+    if (accessToken) {
+      api.get("/auth/lma-token/status")
+        .then((res) => setHasLmaToken(res.data.has_active_token))
+        .catch(() => setHasLmaToken(false));
+    } else {
+      setHasLmaToken(false);
+    }
+  }, [accessToken]);
+
+  const logout = useCallback(async () => {
+    try {
+      await api.post("/auth/logout");
+    } catch {
+      // ignore backend errors
+    }
     applyToken(null);
     router.push("/login");
   }, [applyToken, router]);
@@ -84,6 +92,7 @@ export function AuthProvider({ children }) {
   const value = {
     user,
     accessToken,
+    hasLmaToken, // <-- EXPOSED TO APP
     isAuthenticated: Boolean(accessToken),
     loading,
     applyToken,
