@@ -13,11 +13,10 @@ LMA Token Management:
 4. GET  /auth/lma/verify    → Verify device token (used by LMA CLI)
 """
 from urllib.parse import urlencode
-
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import RedirectResponse
-from sqlalchemy import select
+from sqlalchemy import select, func  
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -179,6 +178,33 @@ async def create_lma_token(
 
     return lma_token
 
+@router.get("/lma-token/status")
+async def check_lma_token_status(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Check if the current user has an active LMA token.
+    
+    Returns:
+        has_active_token: bool - True if user has at least one active token
+        token_count: int - Number of active tokens
+    """
+    stmt = (
+        select(func.count())
+        .select_from(LMAToken)
+        .where(
+            LMAToken.user_id == current_user.id,
+            LMAToken.is_active == True,
+        )
+    )
+    result = await db.execute(stmt)
+    count = result.scalar()
+    
+    return {
+        "has_active_token": count > 0,
+        "token_count": count,
+    }
 
 @router.get("/lma/verify")
 async def verify_lma_token(
