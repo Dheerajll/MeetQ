@@ -1,7 +1,7 @@
 // src/app/(auth)/login/page.jsx
 "use client";
 
-import { Mic } from "lucide-react";
+import { Mic ,Users} from "lucide-react";
 
 const GOOGLE_LOGIN_URL = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/google`;
 
@@ -10,7 +10,7 @@ export default function LoginPage() {
     <div className="bg-surface border border-border rounded-lg shadow-card p-8 sm:p-10 flex flex-col items-center text-center">
       {/* Icon */}
       <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-        <Mic size={24} />
+        <Users size={24} />
       </div>
 
       {/* Header */}
