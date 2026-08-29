@@ -1,9 +1,9 @@
 "use client";
-
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { useMeetingStore } from "@/lib/meetingStore"; // Import the global store
 import LMATokenModal from "@/components/settings/LMATokenModal";
 import {
   Home,
@@ -16,6 +16,7 @@ import {
   X,
   Users,
   Key,
+  Activity, // Icon for the active meeting indicator
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -28,6 +29,10 @@ function SidebarContent({ collapsed, onNavigate }) {
   const pathname = usePathname();
   const { logout } = useAuth();
   const [tokenModalOpen, setTokenModalOpen] = useState(false);
+  
+  // Get global meeting state
+  const { isMeetingActive } = useMeetingStore();
+  const meetingActive = isMeetingActive();
 
   const handleLogout = async () => {
     onNavigate?.();
@@ -37,7 +42,7 @@ function SidebarContent({ collapsed, onNavigate }) {
   return (
     <>
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = pathname === href;
           return (
@@ -57,6 +62,24 @@ function SidebarContent({ collapsed, onNavigate }) {
             </Link>
           );
         })}
+
+        {/* Active Meeting Indicator */}
+        {/* Shows a pulsing indicator if a meeting is running and user is NOT on home page */}
+        {meetingActive && pathname !== "/" && (
+          <div 
+            className={`mt-6 mx-1 p-2 rounded-md bg-primary/10 border border-primary/20 flex items-center gap-2 ${
+              collapsed ? 'justify-center' : ''
+            }`}
+            title={collapsed ? "Meeting in progress" : undefined}
+          >
+            <Activity size={16} className="text-primary animate-pulse shrink-0" />
+            {!collapsed && (
+              <span className="text-xs font-medium text-primary truncate">
+                Meeting in progress...
+              </span>
+            )}
+          </div>
+        )}
       </nav>
 
       {/* Footer */}
@@ -140,47 +163,45 @@ export default function Sidebar() {
       )}
 
       {/* Desktop sidebar */}
-<aside
-  className={`hidden md:flex flex-col shrink-0 h-screen sticky top-0 border-r border-border bg-surface transition-[width] duration-200 ${
-    collapsed ? "w-16" : "w-64"
-  }`}
->
-  {/* Header with logo and collapse button */}
-  <div className="flex items-center h-16 px-4 border-b border-border">
-    {collapsed ? (
-      // When collapsed: just show the collapse button centered
-      <button
-        onClick={() => setCollapsed((c) => !c)}
-        aria-label="Expand sidebar"
-        className="w-full flex items-center justify-center p-1.5 rounded-md text-muted hover:bg-bg hover:text-ink transition-colors"
+      <aside
+        className={`hidden md:flex flex-col shrink-0 h-screen sticky top-0 border-r border-border bg-surface transition-[width] duration-200 ${
+          collapsed ? "w-16" : "w-64"
+        }`}
       >
-        <PanelLeft size={18} className="shrink-0" />
-      </button>
-    ) : (
-      // When expanded: show logo on left, collapse button on right
-      <>
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <div className="flex items-center justify-center w-8 h-8 rounded-md bg-primary text-white shrink-0">
-            <Users size={16} />
-          </div>
-          <span className="font-display font-semibold text-ink truncate">
-            Meet Q
-          </span>
+        {/* Header with logo and collapse button */}
+        <div className="flex items-center h-16 px-4 border-b border-border">
+          {collapsed ? (
+            // When collapsed: just show the collapse button centered
+            <button
+              onClick={() => setCollapsed((c) => !c)}
+              aria-label="Expand sidebar"
+              className="w-full flex items-center justify-center p-1.5 rounded-md text-muted hover:bg-bg hover:text-ink transition-colors"
+            >
+              <PanelLeft size={18} className="shrink-0" />
+            </button>
+          ) : (
+            // When expanded: show logo on left, collapse button on right
+            <>
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className="flex items-center justify-center w-8 h-8 rounded-md bg-primary text-white shrink-0">
+                  <Users size={16} />
+                </div>
+                <span className="font-display font-semibold text-ink truncate">
+                  Meet Q
+                </span>
+              </div>
+              <button
+                onClick={() => setCollapsed((c) => !c)}
+                aria-label="Collapse sidebar"
+                className="p-1.5 rounded-md text-muted hover:bg-bg hover:text-ink transition-colors"
+              >
+                <PanelLeftClose size={18} className="shrink-0" />
+              </button>
+            </>
+          )}
         </div>
-        
-        <button
-          onClick={() => setCollapsed((c) => !c)}
-          aria-label="Collapse sidebar"
-          className="p-1.5 rounded-md text-muted hover:bg-bg hover:text-ink transition-colors"
-        >
-          <PanelLeftClose size={18} className="shrink-0" />
-        </button>
-      </>
-    )}
-  </div>
-
-  <SidebarContent collapsed={collapsed} />
-  </aside>
+        <SidebarContent collapsed={collapsed} />
+      </aside>
     </>
   );
 }

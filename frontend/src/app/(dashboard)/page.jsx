@@ -1,59 +1,75 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Type, Link2, Calendar, Clock, ArrowRight, AlertCircle } from "lucide-react";
+import { Type, Link2, ArrowRight, AlertCircle, Loader2, Languages } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api";
 import MeetingCalendar from "@/components/dashboard/MeetingCalendar";
-import MeetingTrackerCard from "@/components/meetings/MeetingTrackerCard"; // Import the tracker
-
-function todayISO() {
-  const d = new Date();
-  const offset = d.getTimezoneOffset();
-  const local = new Date(d.getTime() - offset * 60 * 1000);
-  return local.toISOString().slice(0, 10);
-}
-
-function nowHHMM() {
-  const d = new Date();
-  return d.toTimeString().slice(0, 5);
-}
+import MeetingTrackerCard from "@/components/meetings/MeetingTrackerCard";
+import { useMeetingStore } from "@/lib/meetingStore"; // Import the global store
 
 export default function HomePage() {
-  const router = useRouter();
   const { user } = useAuth();
+  
+  // Global State for Active Meeting
+  const { activeMeeting, setActiveMeeting, clearActiveMeeting, isMeetingActive } = useMeetingStore();
 
   // Form state
   const [meetingTitle, setMeetingTitle] = useState("");
   const [meetingLink, setMeetingLink] = useState("");
-  const [date, setDate] = useState(todayISO());
-  const [time, setTime] = useState(nowHHMM());
+  const [language, setLanguage] = useState("en"); // Default to English
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  // Active Meeting State (NEW)
-  const [activeMeeting, setActiveMeeting] = useState(null);
-
+  
   // Calendar state
   const [allMeetings, setAllMeetings] = useState([]);
 
-  // Fetch meetings for calendar
+  // Fetch meetings for calendar on mount
   useEffect(() => {
     const fetchMeetings = async () => {
       try {
         const res = await api.get("/meetings");
         setAllMeetings(res.data);
       } catch (err) {
-        console.error("Failed to fetch meetings", err);
+        console.error("Failed to fetch meetings for calendar", err);
       }
     };
     fetchMeetings();
   }, []);
 
+  // Rehydrate active meeting if page was refreshed
+  useEffect(() => {
+    const checkActiveMeeting = async () => {
+      if (!activeMeeting) {
+        try {
+          const res = await api.get("/meetings");
+          // Find any meeting that is not completed or failed
+          const active = res.data.find(m => 
+            m.status === 'recording' || 
+            m.status === 'processing' || 
+            m.status === 'pending'
+          );
+          if (active) {
+            setActiveMeeting(active);
+          }
+        } catch (e) {
+          console.error("Error checking active meeting", e);
+        }
+      }
+    };
+    checkActiveMeeting();
+  }, [activeMeeting, setActiveMeeting]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
+
+    // Prevent submission if a meeting is already running
+    if (isMeetingActive()) {
+      setError("A meeting is already in progress. Please wait for it to finish.");
+      setLoading(false);
+      return;
+    }
 
     try {
       // 1. Check LMA Token
@@ -64,20 +80,20 @@ export default function HomePage() {
         return;
       }
 
-      // 2. Create Meeting via API (Triggers LMA)
+      // 2. Create Meeting via API
       const payload = {
         title: meetingTitle,
         meeting_url: meetingLink,
-        language: "en",
-        notes: `Scheduled for ${date} at ${time}`,
+        language: language,
+        notes: "", // Notes field kept for backend compatibility
       };
 
       const response = await api.post("/meetings", payload);
       
-      // 3. Set Active Meeting (Shows Tracker Card)
+      // 3. Set Active Meeting in Global Store (Shows Tracker Card)
       setActiveMeeting(response.data);
       
-      // 4. Refresh calendar list in background
+      // 4. Refresh calendar list
       const updatedList = await api.get("/meetings");
       setAllMeetings(updatedList.data);
 
@@ -89,13 +105,15 @@ export default function HomePage() {
     }
   };
 
-  // Handler to reset the form (start a new meeting)
   const handleReset = () => {
-    setActiveMeeting(null);
+    clearActiveMeeting();
     setMeetingTitle("");
     setMeetingLink("");
+    setLanguage("en");
     setLoading(false);
   };
+
+  const meetingInProgress = isMeetingActive();
 
   return (
     <main className="flex-1 flex flex-col items-center px-4 py-8 md:py-12 overflow-y-auto">
@@ -110,46 +128,88 @@ export default function HomePage() {
                 <h1 className="font-display text-4xl font-semibold text-ink">Meet Q</h1>
                 {user?.name && <p className="text-sm text-muted mt-2">Hi {user.name}</p>}
               </div>
+
+              {meetingInProgress && (
+                 <div className="mb-4 p-3 bg-accent/10 border border-accent/20 rounded-md flex items-center gap-2 text-sm text-accent">
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>A meeting is currently in progress.</span>
+                 </div>
+              )}
+
               <form onSubmit={handleSubmit} className="bg-surface border border-border rounded-lg shadow-card p-6 sm:p-8 space-y-5">
+                
+                {/* Title Input */}
                 <div>
                   <label htmlFor="meetingTitle" className="block text-sm font-medium text-ink mb-1">Meeting title</label>
                   <div className="relative">
                     <Type size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-                    <input id="meetingTitle" type="text" required value={meetingTitle} onChange={(e) => setMeetingTitle(e.target.value)} placeholder="Your Meeting Title" className="w-full rounded-md border border-border pl-9 pr-3 py-2 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary" />
+                    <input 
+                      id="meetingTitle" 
+                      type="text" 
+                      required 
+                      disabled={meetingInProgress}
+                      value={meetingTitle} 
+                      onChange={(e) => setMeetingTitle(e.target.value)} 
+                      placeholder="Your Meeting Title" 
+                      className="w-full rounded-md border border-border pl-9 pr-3 py-2 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-bg disabled:cursor-not-allowed" 
+                    />
                   </div>
                 </div>
+
+                {/* Link Input */}
                 <div>
                   <label htmlFor="meetingLink" className="block text-sm font-medium text-ink mb-1">Meeting link</label>
                   <div className="relative">
                     <Link2 size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-                    <input id="meetingLink" type="url" required value={meetingLink} onChange={(e) => setMeetingLink(e.target.value)} placeholder="https://meet.google.com/abc-defg-hij" className="w-full rounded-md border border-border pl-9 pr-3 py-2 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary" />
+                    <input 
+                      id="meetingLink" 
+                      type="url" 
+                      required 
+                      disabled={meetingInProgress}
+                      value={meetingLink} 
+                      onChange={(e) => setMeetingLink(e.target.value)} 
+                      placeholder="https://meet.google.com/abc-defg-hij" 
+                      className="w-full rounded-md border border-border pl-9 pr-3 py-2 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-bg disabled:cursor-not-allowed" 
+                    />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="date" className="block text-sm font-medium text-ink mb-1">Date</label>
-                    <div className="relative">
-                      <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
-                      <input id="date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} className="w-full rounded-md border border-border pl-9 pr-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary" />
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="time" className="block text-sm font-medium text-ink mb-1">Time</label>
-                    <div className="relative">
-                      <Clock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
-                      <input id="time" type="time" required value={time} onChange={(e) => setTime(e.target.value)} className="w-full rounded-md border border-border pl-9 pr-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary" />
+
+                {/* Language Selection (Replaces Date/Time) */}
+                <div>
+                  <label htmlFor="language" className="block text-sm font-medium text-ink mb-1">Language</label>
+                  <div className="relative">
+                    <Languages size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
+                    <select
+                      id="language"
+                      value={language}
+                      onChange={(e) => setLanguage(e.target.value)}
+                      disabled={meetingInProgress}
+                      className="w-full rounded-md border border-border pl-9 pr-3 py-2 text-sm text-ink bg-surface focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-bg disabled:cursor-not-allowed appearance-none"
+                    >
+                      <option value="en">English</option>
+                      <option value="ne">Nepali (Code-Switched)</option>
+                    </select>
+                    {/* Custom dropdown arrow */}
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-muted">
+                      <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
                     </div>
                   </div>
                 </div>
+
                 {error && (
                   <div className="flex items-start gap-2 p-3 bg-danger/10 border border-danger/20 rounded-md">
                     <AlertCircle size={16} className="text-danger mt-0.5 shrink-0" />
                     <p className="text-sm text-danger">{error}</p>
                   </div>
                 )}
-                <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 rounded-md bg-primary py-2.5 text-sm font-medium text-white hover:bg-primary-dark transition-colors disabled:opacity-60">
-                  {loading ? "Starting Agent..." : "Submit Link"}
-                  {!loading && <ArrowRight size={16} />}
+
+                <button 
+                  type="submit" 
+                  disabled={loading || meetingInProgress} 
+                  className="w-full flex items-center justify-center gap-2 rounded-md bg-primary py-2.5 text-sm font-medium text-white hover:bg-primary-dark transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {loading ? "Starting Agent..." : meetingInProgress ? "Meeting in Progress" : "Submit Link"}
+                  {!loading && !meetingInProgress && <ArrowRight size={16} />}
                 </button>
               </form>
             </>
@@ -158,12 +218,12 @@ export default function HomePage() {
             <MeetingTrackerCard 
               meeting={activeMeeting} 
               onStatusChange={(updatedMeeting) => setActiveMeeting(updatedMeeting)}
-              onReset={handleReset} // Pass reset handler
+              onReset={handleReset}
             />
           )}
         </div>
 
-        {/* ─── SECTION 2: Calendar ─── */}
+        {/* ─── SECTION 2: Meeting Activity Calendar ─── */}
         <div className="w-full">
           <MeetingCalendar meetings={allMeetings} />
         </div>
