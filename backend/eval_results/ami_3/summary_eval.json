@@ -1,0 +1,43 @@
+{
+  "name": "ami_3",
+  "meeting_type": "educational",
+  "rouge": {
+    "rouge1": {
+      "precision": 0.5248,
+      "recall": 0.1209,
+      "fmeasure": 0.1965
+    },
+    "rouge2": {
+      "precision": 0.1,
+      "recall": 0.0229,
+      "fmeasure": 0.0373
+    },
+    "rougeL": {
+      "precision": 0.3121,
+      "recall": 0.0719,
+      "fmeasure": 0.1169
+    }
+  },
+  "metrics": {
+    "compression_ratio": 0.1549,
+    "number_preservation": 0.5,
+    "keyword_coverage": 0.1333,
+    "judge": {
+      "coverage": 4,
+      "accuracy": 5,
+      "coherence": 4,
+      "conciseness": 5,
+      "notes": "The summary accurately captures the main points and decisions, but misses the initial setup and introductions, and the playful nature of the animal drawing exercise."
+    }
+  },
+  "timings": {
+    "cleaning_s": 0.0,
+    "summarization_s": 262.7
+  },
+  "structure": {
+    "key_topics": 4,
+    "decisions": 1,
+    "action_items": 2
+  },
+  "overview": "The meeting centered on the development of a new remote control project, aiming for a unique and accessible design appealing to a wide demographic. Participants explored design inspiration through a creative whiteboard exercise, drawing parallels between animal characteristics and desired product qualities. A key decision made was establishing a selling price of 25 euros (approximately 17 pounds), which will be formally recorded and distributed. The project remains on track, progressing through its phases of functional, conceptual, and detailed design. Next steps involve documenting the agreed-upon price and continuing the design process, building upon the insights gained from the initial brainstorming session."
+}

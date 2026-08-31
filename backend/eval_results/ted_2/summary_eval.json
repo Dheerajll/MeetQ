@@ -1,0 +1,27 @@
+{
+  "name": "ted_2",
+  "meeting_type": "educational",
+  "rouge": null,
+  "metrics": {
+    "compression_ratio": 0.2434,
+    "number_preservation": 0.0,
+    "keyword_coverage": 0.1333,
+    "judge": {
+      "coverage": 5,
+      "accuracy": 5,
+      "coherence": 5,
+      "conciseness": 4,
+      "notes": "Excellent summary, capturing all key points and nuances of the transcript. The structured fields are also well-organized and informative."
+    }
+  },
+  "timings": {
+    "cleaning_s": 0.0,
+    "summarization_s": 228.5
+  },
+  "structure": {
+    "key_topics": 6,
+    "decisions": 2,
+    "action_items": 2
+  },
+  "overview": "The meeting centered on exploring the role of \"grit\" as a predictor of success, drawing on research from various settings and a compelling study of Chicago public school students. Discussions highlighted grit's significant correlation with positive outcomes like graduation rates, while also acknowledging the complexities of cultivating it and its distinction from innate talent. A promising avenue for development was identified in the growth mindset framework, emphasizing the potential for learning and perseverance. It was decided that further research and experimentation are crucial to refine strategies for fostering grit in children, with a focus on learning from both successes and failures in the process. The next steps involve exploring practical applications of the growth mindset and designing pilot programs to test different approaches."
+}

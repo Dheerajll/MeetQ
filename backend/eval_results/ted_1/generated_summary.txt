@@ -1,0 +1,19 @@
+TYPE: educational
+
+OVERVIEW:
+The meeting explored the vital role of creativity and adaptability in education, drawing inspiration from examples of childhood imagination and the challenges of navigating an uncertain future. Discussions centered on the need to elevate creativity to a level comparable with literacy, recognizing the inherent willingness of children to experiment and learn from mistakes. Participants considered the current educational system’s prioritization of certain subjects, questioning the balance between intellectual development and artistic expression, particularly regarding the consistent inclusion of dance and drama. Ultimately, the group agreed on the importance of fostering a more holistic approach to education that prepares students for an unpredictable world and values diverse forms of intelligence. Further investigation into alternative pedagogical models and curriculum adjustments will be pursued.
+
+KEY TOPICS:
+- Creativity and adaptability are vital in education
+- Children's imagination was discussed as a source of inspiration
+- The need to elevate creativity to the level of literacy was explored
+- The current educational system's prioritization of subjects was questioned
+- The balance between intellectual development and artistic expression was considered
+- A holistic approach to education was deemed important
+
+DECISIONS:
+- The group agreed on the importance of fostering a more holistic approach to education
+
+ACTION ITEMS:
+- Further investigation into alternative pedagogical models will be pursued
+- Curriculum adjustments will be pursued

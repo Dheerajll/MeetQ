@@ -1,0 +1,18 @@
+TYPE: general
+
+OVERVIEW:
+The meeting formally launched the new remote control design project, led by Laura and involving David, Andrew, Greg, and Craig. The team began by engaging in a creative exercise, drawing animals to explore design characteristics, setting the stage for a focus on originality, trendiness, and user-friendliness. Key discussion points centered on the project's international scope, potential regional design adaptations, and the viability of the proposed 25-euro price point, which requires clarification regarding wholesale versus retail status. The project will now progress through individual work phases punctuated by team meetings, with consideration given to achieving the target revenue of 50 million euros while maintaining production costs below 12.50 euros. Further investigation is needed to determine the specifics of regional design requirements and the price point's international appeal.
+
+KEY TOPICS:
+- The meeting launched the new remote control design project
+- The team explored design characteristics through a creative exercise
+- Discussion focused on the project's international scope
+- Potential regional design adaptations were considered
+- The viability of a 25-euro price point was discussed
+
+DECISIONS:
+
+
+ACTION ITEMS:
+- Further investigation is needed to determine regional design requirements
+- Further investigation is needed to determine the price point's international appeal

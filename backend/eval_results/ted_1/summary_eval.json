@@ -1,0 +1,27 @@
+{
+  "name": "ted_1",
+  "meeting_type": "educational",
+  "rouge": null,
+  "metrics": {
+    "compression_ratio": 0.1347,
+    "number_preservation": 0.0,
+    "keyword_coverage": 0.2333,
+    "judge": {
+      "coverage": 4,
+      "accuracy": 5,
+      "coherence": 4,
+      "conciseness": 3,
+      "notes": "The summary captures the main themes but misses some of the more humorous anecdotes (e.g., the Nativity play story, the Sarah story) which, while entertaining, contributed to the overall message about children's willingness to take risks. The structured fields are accurate but somewhat generic."
+    }
+  },
+  "timings": {
+    "cleaning_s": 0.0,
+    "summarization_s": 278.2
+  },
+  "structure": {
+    "key_topics": 6,
+    "decisions": 1,
+    "action_items": 2
+  },
+  "overview": "The meeting explored the vital role of creativity and adaptability in education, drawing inspiration from examples of childhood imagination and the challenges of navigating an uncertain future. Discussions centered on the need to elevate creativity to a level comparable with literacy, recognizing the inherent willingness of children to experiment and learn from mistakes. Participants considered the current educational system’s prioritization of certain subjects, questioning the balance between intellectual development and artistic expression, particularly regarding the consistent inclusion of dance and drama. Ultimately, the group agreed on the importance of fostering a more holistic approach to education that prepares students for an unpredictable world and values diverse forms of intelligence. Further investigation into alternative pedagogical models and curriculum adjustments will be pursued."
+}

@@ -1,0 +1,26 @@
+{
+  "name": "nepali_1",
+  "meeting_type": "educational",
+  "metrics": {
+    "compression_ratio": 0.322,
+    "number_preservation": 0.0,
+    "keyword_coverage": 0.1667,
+    "judge": {
+      "coverage": 4,
+      "accuracy": 5,
+      "coherence": 4,
+      "conciseness": 3,
+      "notes": "The summary captures most key points, but the prioritization of a 'data delivery builder' isn't explicitly mentioned in the transcript. The summary is generally accurate and well-organized, but could be more concise by avoiding some repetition."
+    }
+  },
+  "timings": {
+    "cleaning_s": 361.5,
+    "summarization_s": 269.0
+  },
+  "structure": {
+    "key_topics": 7,
+    "decisions": 2,
+    "action_items": 2
+  },
+  "overview": "The meeting explored the rapidly expanding applications of artificial intelligence across diverse sectors, from healthcare and media to legal services and scientific research, while underscoring the critical importance of ethical considerations and responsible development. Discussions centered on potential biases within AI systems, the necessity of high-quality data and interpretability, and the need for inclusive AI practices to avoid disadvantaging vulnerable populations. It was acknowledged that numerous global organizations are actively shaping AI strategies focused on trustworthiness and fairness, and that significant market opportunities exist alongside substantial infrastructure demands for training and development. A key decision involved prioritizing the development of a data delivery builder and collection process, with Nepal identified as a potential pilot location for medical applications, and future efforts will focus on further research into labeling and resource distribution within the AI development landscape."
+}

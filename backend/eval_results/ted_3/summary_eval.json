@@ -1,0 +1,27 @@
+{
+  "name": "ted_3",
+  "meeting_type": "educational",
+  "rouge": null,
+  "metrics": {
+    "compression_ratio": 0.1341,
+    "number_preservation": 0.0,
+    "keyword_coverage": 0.0667,
+    "judge": {
+      "coverage": 5,
+      "accuracy": 5,
+      "coherence": 4,
+      "conciseness": 3,
+      "notes": "The summary accurately captures the core themes and techniques discussed, including the importance of practice, empowerment promises, repetition, verbal punctuation, and the device policy. However, it could be more concise by avoiding some of the more verbose phrasing (e.g., 'Developing effective communication and presentation skills was the focus of the meeting.' is somewhat redundant)."
+    }
+  },
+  "timings": {
+    "cleaning_s": 0.0,
+    "summarization_s": 286.1
+  },
+  "structure": {
+    "key_topics": 7,
+    "decisions": 1,
+    "action_items": 1
+  },
+  "overview": "The meeting centered on developing effective communication and presentation skills, emphasizing that mastery comes through dedicated practice rather than innate talent. The session began by challenging conventional presentation openings and instead introduced an \"empowerment promise\" to set expectations for learning outcomes. Key techniques discussed included repetition for audience retention, clear differentiation of concepts, strategic verbal punctuation, and the use of landmarks and pauses to re-engage listeners. Attendees were instructed to leave electronic devices at the door to optimize the learning environment, and the overall goal was to illustrate practical, observable methods for impactful presentations. Following this session, participants are expected to apply these techniques to enhance their own communication abilities."
+}

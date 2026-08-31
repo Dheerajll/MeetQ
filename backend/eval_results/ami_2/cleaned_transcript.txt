@@ -1,0 +1,21 @@
+[speaker 1] Okay, well I think we're ready to begin. Right, my name's Adam Dugood, we're here because of Real Reaction. We have in the group... Ebenezer Ademusoe. Would you like me to spell it? Yeah, go for it mate. N -E -Z N -E -Z E -R Ebenezer, and your role is? I'm the marketing expert. You're the marketing expert, okay. Next we [speaker 0] have Tariq Rahman, T -A -R -I -K. [speaker 1] T -R -I -K. And your role in this is? Industrial designer. Industrial designer.
+
+[speaker 1] And lastly we have? Dave Cochrane. And you're going to be the user interface designer. Okay. Right. This is the agenda for today's meeting. As you can see, opening, acquaintance, tool training, project plan, discussion and closing. closing. We've already gone through opening and partially through acquaintance. So the reason we're here, we're going to design a new remote control as you probably all know. The very broad overview is original, trendy and user friendly. Of course we'll have to go into a bit more detail than that, but personally I think that the original is going to be a very key aspect of this design. There's a lot of remote controls out there anyway so so we're going to need something that's really going to set it apart.
+
+[speaker 1] This is how today seems to be going to work. We now have the 3k phases as you've probably already been told, the functional, the conceptual and the detailed design. The first one is going to be covering the user requirements spec, technical functions, working design. The second seems to be conceptual components, properties, materials and the And the last one is a detailed analysis of our design so far. Of course, you've all got the similar emails, I believe. What can I say? Evan Muser, do you want to draw your favorite animal? Sure. [speaker 2] Whiteboard. OK. Okay. I'm gonna make this quick since we don't have much time.
+
+[speaker 1] Thank you.
+
+[speaker 3] So, it's not [speaker 2] the best picture in the world. Here we have an elephant. First point, it begins with an E, same like Ebenezer. Also, elephants have a very good memory, much like myself. And I can't remember back when I used to live in Nigeria, but I think I used to have a pet elephant. So elephants are big, strong, and gentle, and they have great memories, and it begins with the letter E, just like Ebenezer. [speaker 1] Brilliantly done. Thank you. Derek, would you like to have a shot at a bit of artistry? [speaker 3] It's supposed to come all the way, isn't it? [speaker 1] Oh, you [speaker 3] can clip them to your belt. Oh, thank you. You [speaker 1] should also [speaker 2] have your lapel [speaker 1] mic on as well. [speaker 2] Does it? Oh, that's good. We can clip them on. Okay, yeah, there was this microphone as well.
+
+[speaker 2] we can clip them on. Okay. Yeah, there's this microphone as well that you... Just somewhere... [speaker 4] The other... It's just across there. That's it. Yep. Thank you.
+
+[speaker 5] I [speaker 1] think so. Yeah, it'll follow you if you... There you go. You can probably just stick it in your pocket for now. I wouldn't worry too much. You should have good range. [speaker 5] Yeah, I'm destroying your altitude here.
+
+
+
+[speaker 6] Here we have a tiger. I've always loved tigers. They're big as cats. I did a project on cats as a kid and it was my favourite cat just because it looks the best. The stripes, orange. My dad used to talk about it. He's from Bangladesh so he used to tell me about them when I was when I was a kid and they're just the most feared of animals in the wild so that's why I like them. Doesn't say anything about me really but... [speaker 1] Excellent thank you very much. Dave if you'd like to have a dash?
+
+[speaker 1] Thank you.
+
+[speaker 7] A monkey. This is somewhat a bleak reference, in fact, to I have a three -year -old daughter who is affectionately known as Miss Monkey. Monkeys have attitude, which I think is a good thing. And from the point of view of the study of human evolution, they and other primates are terribly interesting. [speaker 1] This one [speaker 7] seems to have perhaps more attitude than most.

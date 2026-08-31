@@ -1,0 +1,17 @@
+TYPE: educational
+
+OVERVIEW:
+The meeting centered on the development of a new remote control project, aiming for a unique and accessible design appealing to a wide demographic. Participants explored design inspiration through a creative whiteboard exercise, drawing parallels between animal characteristics and desired product qualities. A key decision made was establishing a selling price of 25 euros (approximately 17 pounds), which will be formally recorded and distributed. The project remains on track, progressing through its phases of functional, conceptual, and detailed design. Next steps involve documenting the agreed-upon price and continuing the design process, building upon the insights gained from the initial brainstorming session.
+
+KEY TOPICS:
+- Development of a new remote control project
+- Unique and accessible design
+- Design inspiration through a whiteboard exercise
+- Functional, conceptual, and detailed design phases
+
+DECISIONS:
+- Establishing a selling price of 25 euros
+
+ACTION ITEMS:
+- Documenting the agreed-upon price
+- Continuing the design process
